@@ -1,0 +1,14 @@
+plugins {
+    id 'application'
+}
+
+group 'cnv.wsinstrumenter'
+version '1.0-SNAPSHOT'
+sourceCompatibility = 1.7
+targetCompatibility = 1.7
+mainClassName = 'cnv.wsinstrumenter.ICount'
+
+dependencies {
+    implementation files('lib/bit.jar')
+}
+

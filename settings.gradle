@@ -9,3 +9,4 @@
 
 rootProject.name = 'cnv'
 include 'wsinstrumenter'
+include 'autoscaler'

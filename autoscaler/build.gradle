@@ -1,0 +1,20 @@
+plugins {
+    id 'application'
+}
+
+group 'cnv.autoscaler'
+version '1.0-SNAPSHOT'
+sourceCompatibility = 1.7
+targetCompatibility = 1.7
+mainClassName = 'cnv.autoscaler.Main'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation platform('com.amazonaws:aws-java-sdk-bom:1.11.998')
+    implementation 'com.amazonaws:aws-java-sdk-ec2'
+    implementation 'com.amazonaws:aws-java-sdk-cloudwatch'
+    implementation 'com.amazonaws:aws-java-sdk-dynamodb'
+}

@@ -8,6 +8,9 @@ sourceCompatibility = 1.7
 targetCompatibility = 1.7
 mainClassName = 'pt.ulisboa.tecnico.cnv.server.WebServer'
 
+// make instrumented code work
+applicationDefaultJvmArgs = ["-XX:-UseSplitVerifier"]
+
 repositories {
     mavenCentral()
 }

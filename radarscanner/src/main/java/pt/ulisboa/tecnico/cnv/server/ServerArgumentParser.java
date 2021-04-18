@@ -87,7 +87,7 @@ public class ServerArgumentParser {
             final String port = this.cmd.getOptionValue(ServerParameters.PORT.toString());
             this.argValues.put(ServerParameters.PORT.toString(), new Integer(port));
         } else {
-            this.argValues.put(ServerParameters.PORT.toString(), new Integer(8000));
+            this.argValues.put(ServerParameters.PORT.toString(), 8000);
         }
 
         if (this.cmd.hasOption(ServerParameters.MAPS_DIR.toString())) {

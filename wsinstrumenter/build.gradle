@@ -6,7 +6,7 @@ group 'cnv.wsinstrumenter'
 version '1.0-SNAPSHOT'
 sourceCompatibility = 1.7
 targetCompatibility = 1.7
-mainClassName = 'cnv.wsinstrumenter.ICount'
+mainClassName = 'cnv.wsinstrumenter.MultiThreadedStatistics'
 
 dependencies {
     implementation files('lib/bit.jar')

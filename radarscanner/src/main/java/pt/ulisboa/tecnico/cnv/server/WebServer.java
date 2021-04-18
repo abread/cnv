@@ -105,6 +105,7 @@ public class WebServer {
              */
 
             // Create solver instance from factory.
+            MetricTracker.requestStart(args);
             final Solver s = SolverFactory.getInstance().makeSolver(args);
 
             if (s == null) {
@@ -131,15 +132,11 @@ public class WebServer {
 
                 responseFile = imagePathPNG.toFile();
 
-            } catch (final FileNotFoundException e) {
-                e.printStackTrace();
-            } catch (final IOException e) {
-                e.printStackTrace();
-            } catch (ClassNotFoundException e) {
-                e.printStackTrace();
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 e.printStackTrace();
             }
+
+            MetricTracker.requestEnd().print();
 
             // Send response to browser.
             final Headers hdrs = t.getResponseHeaders();

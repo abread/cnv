@@ -13,7 +13,7 @@ class Branch {
 public class BranchPrediction {
 	static Hashtable branch = null;
 	static int pc = 0;
-	
+
 	public static void main(String argv[]) {
 		String infilename = new String(argv[0]);
 		String outfilename = new String(argv[1]);
@@ -28,8 +28,8 @@ public class BranchPrediction {
 					Instruction instr = (Instruction)instructions[bb.getEndAddress()];
 					short instr_type = InstructionTable.InstructionTypeTable[instr.getOpcode()];
 					if (instr_type == InstructionTable.CONDITIONAL_INSTRUCTION) {
-						instr.addBefore("BranchPrediction", "Offset", new Integer(instr.getOffset()));
-						instr.addBefore("BranchPrediction", "Branch", new String("BranchOutcome"));
+						instr.addBefore("BranchPrediction", "Offset", instr.getOffset());
+						instr.addBefore("BranchPrediction", "Branch", "BranchOutcome");
 					}
 				}
 				String method = new String(routine.getMethodName());
@@ -44,7 +44,7 @@ public class BranchPrediction {
 		System.out.println("method: " + s);
 		branch = new Hashtable();
 	}
-	
+
 	public static void LeaveMethod(String s) {
 		System.out.println("stat for method: " + s);
 		for (Enumeration e = branch.keys(); e.hasMoreElements(); ) {

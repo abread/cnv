@@ -1,0 +1,21 @@
+plugins {
+    id 'application'
+}
+
+group 'cnv.radarscanner'
+version '1.0-SNAPSHOT'
+sourceCompatibility = 1.7
+targetCompatibility = 1.7
+mainClassName = 'pt.ulisboa.tecnico.cnv.server.WebServer'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // TODO: autocreate this file
+    // meanwhile, run `jar cf ../../../precompiled.jar **/*.class` in src/main/precompiled to create it
+    // you really must run it on that dir or the package hierarchy will be ruined
+    implementation files('precompiled.jar')
+    implementation 'com.sun.net.httpserver:http:20070405'
+}

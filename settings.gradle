@@ -9,4 +9,5 @@
 
 rootProject.name = 'cnv'
 include 'wsinstrumenter'
+include 'radarscanner'
 include 'autoscaler'

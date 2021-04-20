@@ -19,6 +19,10 @@ package cnv.wsinstrumenter;
 
 import BIT.highBIT.*;
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Enumeration;
 
 public class MultiThreadedStatistics {
@@ -35,54 +39,62 @@ public class MultiThreadedStatistics {
         System.exit(-1);
     }
 
-    public static void doDynamic(File in_dir, File out_dir) {
-        String[] fileList = in_dir.list();
+    public static void instrumentDirRecurse(Path in_dir, Path out_dir) throws IOException {
+        if (!Files.isDirectory(in_dir)) {
+            System.err.println(String.format("%s is not a directory", in_dir.toString()));
+            System.exit(-1);
+        } else if (!Files.isDirectory(out_dir)) {
+            if (Files.exists(out_dir)) {
+                System.err.println(String.format("%s is not a directory", out_dir.toString()));
+                System.exit(-1);
+            } else {
+                Files.createDirectories(out_dir);
+            }
+        }
+
+        String[] fileList = in_dir.toFile().list();
         assert fileList != null;
         for (String filename : fileList) {
-            if (filename.endsWith(".class")) {
-                String in_filename = in_dir.getAbsolutePath() + System.getProperty("file.separator") + filename;
-                String out_filename = out_dir.getAbsolutePath() + System.getProperty("file.separator") + filename;
-                ClassInfo ci = new ClassInfo(in_filename);
+            Path in_path = in_dir.resolve(filename);
+            Path out_path = out_dir.resolve(filename);
 
-                for (Enumeration<?> e = ci.getRoutines().elements(); e.hasMoreElements(); ) {
-                    Routine routine = (Routine) e.nextElement();
-                    routine.addBefore(CLASS_METRIC_TRACKER, METHOD_INCR_METHOD_COUNT, 0 /* could be anything, we don't care */);
-
-                    for (Enumeration<?> b = routine.getBasicBlocks().elements(); b.hasMoreElements(); ) {
-                        BasicBlock bb = (BasicBlock) b.nextElement();
-                        bb.addBefore(CLASS_METRIC_TRACKER, METHOD_INCR_INSTR_COUNT, bb.size());
-                    }
-                }
-
-                ci.write(out_filename);
+            if (Files.isDirectory(in_path)) {
+                instrumentDirRecurse(in_path, out_path);
+            } else if (in_path.toString().endsWith(".class")) {
+                instrumentFile(in_path, out_path);
+            } else {
+                System.err.println(String.format("File not processed: %s", in_path.toString()));
             }
         }
     }
 
-	public static void main(String[] argv) {
+    public static void instrumentFile(Path in_path, Path out_path) {
+        ClassInfo ci = new ClassInfo(in_path.toString());
+
+        for (Enumeration<?> e = ci.getRoutines().elements(); e.hasMoreElements(); ) {
+            Routine routine = (Routine) e.nextElement();
+            routine.addBefore(CLASS_METRIC_TRACKER, METHOD_INCR_METHOD_COUNT, 0 /* could be anything, we don't care */);
+
+            for (Enumeration<?> b = routine.getBasicBlocks().elements(); b.hasMoreElements(); ) {
+                BasicBlock bb = (BasicBlock) b.nextElement();
+                bb.addBefore(CLASS_METRIC_TRACKER, METHOD_INCR_INSTR_COUNT, bb.size());
+            }
+        }
+
+        ci.write(out_path.toString());
+    }
+
+    public static void main(String[] argv) throws IOException {
         if (argv.length != 2) {
+            System.err.println(argv.length);
+            System.err.println(argv[0]);
+            System.err.println(argv[1]);
+            System.err.println(argv[2]);
             printUsage();
         }
 
-        File in_dir;
-        File out_dir;
-        try {
-            in_dir = new File(argv[0]);
-            out_dir = new File(argv[1]);
-        } catch (NullPointerException e) {
-            System.err.println("in_dir or out_dir do not exist");
-            printUsage();
-            return; // printUsage will exit with -1, but this makes the compiler happy
-        }
-
-        if (!in_dir.isDirectory()) {
-            System.err.println("in_dir is not a directory");
-            printUsage();
-        } else if (!out_dir.isDirectory()) {
-            System.err.println("out_dir is not a directory");
-            printUsage();
-        } else {
-            doDynamic(in_dir, out_dir);
-        }
+        Path in_dir = Paths.get(argv[0]);
+        Path out_dir = Paths.get(argv[1]);
+        instrumentDirRecurse(in_dir, out_dir);
     }
 }

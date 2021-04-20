@@ -9,16 +9,51 @@ targetCompatibility = 1.7
 mainClassName = 'pt.ulisboa.tecnico.cnv.server.WebServer'
 
 // make instrumented code work
-applicationDefaultJvmArgs = ["-XX:-UseSplitVerifier"]
+applicationDefaultJvmArgs = ['-XX:-UseSplitVerifier']
 
 repositories {
     mavenCentral()
 }
 
 dependencies {
-    // TODO: autocreate this file
-    // meanwhile, run `jar cf ../../../precompiled.jar **/*.class` in src/main/precompiled to create it
-    // you really must run it on that dir or the package hierarchy will be ruined
-    implementation files('precompiled.jar')
     implementation 'com.sun.net.httpserver:http:20070405'
+
+    // generated during the build
+    implementation files('build/precompiled.jar')
+}
+
+
+tasks.register('instrument-classes', Exec)
+
+tasks.named('instrument-classes') {
+    dependsOn ':wsinstrumenter:build'
+    workingDir '..'
+    commandLine './gradlew', ':wsinstrumenter:run', "--args=${project.projectDir}/src/main/to-instrument ${project.projectDir}/build/precompiled"
+}
+
+tasks.register('copy-precompiled-classes', Copy)
+
+tasks.named('copy-precompiled-classes') {
+    from "${project.projectDir}/src/main/precompiled"
+    into "${project.projectDir}/build/precompiled"
+}
+
+tasks.register('build-precompiled-jar', Jar)
+tasks.named('build-precompiled-jar') {
+    dependsOn 'instrument-classes'
+    dependsOn 'copy-precompiled-classes'
+
+    destinationDir file("${project.projectDir}/build")
+    archiveName 'precompiled.jar'
+
+    from fileTree("${project.projectDir}/build/precompiled") {
+        include '**/*.class'
+    }
+}
+
+compileJava.dependsOn 'build-precompiled-jar'
+
+clean.doFirst {
+    delete "${project.projectDir}/build/precompiled"
+    delete "${project.projectDir}/build/precompiled.jar"
 }

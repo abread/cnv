@@ -26,7 +26,7 @@ public class MetricTracker {
     /**
      * TODO
      *
-     * Thread-safety: localMetrics is a concurrent hashmap which supports concurrent get() calls
+     * Thread-safety: localMetricStorage is a concurrent hashmap which supports concurrent get() calls
      * Only the thread T accesses the Metrics object stored with key T, so no concurrent accesses are performed on
      * Metric objects.
      *

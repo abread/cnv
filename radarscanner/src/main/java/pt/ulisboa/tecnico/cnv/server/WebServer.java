@@ -26,6 +26,7 @@ import javax.imageio.ImageIO;
 public class WebServer {
 
     static ServerArgumentParser sap = null;
+    static SolverFactory solverFactory = SolverFactory.getInstance();
 
     public static void main(final String[] args) throws Exception {
 
@@ -106,11 +107,12 @@ public class WebServer {
 
             // Create solver instance from factory.
             MetricTracker.requestStart(args);
-            final Solver s = SolverFactory.getInstance().makeSolver(args);
+            final Solver s = solverFactory.makeSolver(args);
 
             if (s == null) {
-                System.out.println("> Problem creating Solver. Exiting.");
-                System.exit(1);
+                System.out.println("> Problem creating Solver.");
+                t.sendResponseHeaders(400, 0);
+                return;
             }
 
             // Write figure file to disk.
@@ -134,6 +136,8 @@ public class WebServer {
 
             } catch (final Exception e) {
                 e.printStackTrace();
+                t.sendResponseHeaders(500, 0);
+                return;
             }
 
             MetricTracker.requestEnd().print();

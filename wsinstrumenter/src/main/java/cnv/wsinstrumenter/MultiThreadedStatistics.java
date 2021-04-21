@@ -18,7 +18,6 @@
 package cnv.wsinstrumenter;
 
 import BIT.highBIT.*;
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -86,10 +85,6 @@ public class MultiThreadedStatistics {
 
     public static void main(String[] argv) throws IOException {
         if (argv.length != 2) {
-            System.err.println(argv.length);
-            System.err.println(argv[0]);
-            System.err.println(argv[1]);
-            System.err.println(argv[2]);
             printUsage();
         }
 

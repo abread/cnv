@@ -2,7 +2,6 @@ package pt.ulisboa.tecnico.cnv.server;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
@@ -26,7 +25,13 @@ import javax.imageio.ImageIO;
 public class WebServer {
 
     static ServerArgumentParser sap = null;
-    static SolverFactory solverFactory = SolverFactory.getInstance();
+    static SolverFactory solverFactory;
+    static {
+        // just create a dummy metric hold to prevent instrumented code in the main thread from panicking
+        MetricTracker.requestStart(new String[0]);
+
+        solverFactory = SolverFactory.getInstance();
+    }
 
     public static void main(final String[] args) throws Exception {
 
@@ -67,10 +72,6 @@ public class WebServer {
             // Break it down into String[].
             final String[] params = query.split("&");
 
-            /*
-             * for(String p: params) { System.out.println(p); }
-             */
-
             // Store as if it was a direct call to SolverMain.
             final ArrayList<String> newArgs = new ArrayList<>();
             for (final String p : params) {
@@ -82,11 +83,6 @@ public class WebServer {
 
                 newArgs.add("-" + splitParam[0]);
                 newArgs.add(splitParam[1]);
-
-                /*
-                 * System.out.println("splitParam[0]: " + splitParam[0]);
-                 * System.out.println("splitParam[1]: " + splitParam[1]);
-                 */
             }
 
             if (sap.isDebugging()) {
@@ -101,10 +97,6 @@ public class WebServer {
                 i++;
             }
 
-            /*
-             * for(String ar : args) { System.out.println("ar: " + ar); }
-             */
-
             // Create solver instance from factory.
             MetricTracker.requestStart(args);
             final Solver s = solverFactory.makeSolver(args);
@@ -112,6 +104,7 @@ public class WebServer {
             if (s == null) {
                 System.out.println("> Problem creating Solver.");
                 t.sendResponseHeaders(400, 0);
+                t.getResponseBody().close();
                 return;
             }
 
@@ -125,10 +118,6 @@ public class WebServer {
 
                 final String imageName = s.toString();
 
-                /*
-                 * if(ap.isDebugging()) { System.out.println("> Image name: " + imageName); }
-                 */
-
                 final Path imagePathPNG = Paths.get(outPath, imageName);
                 ImageIO.write(outputImg, "png", imagePathPNG.toFile());
 
@@ -137,6 +126,7 @@ public class WebServer {
             } catch (final Exception e) {
                 e.printStackTrace();
                 t.sendResponseHeaders(500, 0);
+                t.getResponseBody().close();
                 return;
             }
 

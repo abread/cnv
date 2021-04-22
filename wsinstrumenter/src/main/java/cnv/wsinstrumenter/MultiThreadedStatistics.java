@@ -26,8 +26,6 @@ import java.util.Enumeration;
 
 public class MultiThreadedStatistics {
     private static final String CLASS_METRIC_TRACKER = "pt/ulisboa/tecnico/cnv/server/MetricTracker";
-    private static final String METHOD_INCR_METHOD_COUNT = "incrMethodCount";
-    private static final String METHOD_INCR_INSTR_COUNT = "incrInstrCount";
 
     public static void printUsage() {
         System.err.println("Syntax: java MultiThreadedStatistics in_path [out_path]");
@@ -70,15 +68,11 @@ public class MultiThreadedStatistics {
     public static void instrumentFile(Path in_path, Path out_path) {
         ClassInfo ci = new ClassInfo(in_path.toString());
 
-        for (Enumeration<?> e = ci.getRoutines().elements(); e.hasMoreElements(); ) {
-            Routine routine = (Routine) e.nextElement();
-            routine.addBefore(CLASS_METRIC_TRACKER, METHOD_INCR_METHOD_COUNT, 0 /* could be anything, we don't care */);
-
-            for (Enumeration<?> b = routine.getBasicBlocks().elements(); b.hasMoreElements(); ) {
-                BasicBlock bb = (BasicBlock) b.nextElement();
-                bb.addBefore(CLASS_METRIC_TRACKER, METHOD_INCR_INSTR_COUNT, bb.size());
-            }
-        }
+        //AllocTracker.instrument(ci);
+        //LSTracker.instrument(ci);
+        //BranchTracker.instrument(ci);
+        InstrTracker.instrument(ci);
+        //MethodCallTracker.instrument(ci);
 
         ci.write(out_path.toString());
     }
@@ -91,5 +85,133 @@ public class MultiThreadedStatistics {
         Path in_dir = Paths.get(argv[0]);
         Path out_dir = Paths.get(argv[1]);
         instrumentDirRecurse(in_dir, out_dir);
+    }
+
+    private static class InstrTracker {
+        private static final String METHOD_INCR_INSTR_COUNT = "incrInstrCount";
+
+        public static void instrument(ClassInfo ci) {
+            for (Enumeration<?> e = ci.getRoutines().elements(); e.hasMoreElements(); ) {
+                Routine routine = (Routine) e.nextElement();
+
+                for (Enumeration<?> b = routine.getBasicBlocks().elements(); b.hasMoreElements(); ) {
+                    BasicBlock bb = (BasicBlock) b.nextElement();
+                    bb.addBefore(CLASS_METRIC_TRACKER, METHOD_INCR_INSTR_COUNT, bb.size());
+                }
+            }
+        }
+    }
+
+    private static class MethodCallTracker {
+        private static final String METHOD_INCR_METHOD_COUNT = "incrMethodCount";
+
+        public static void instrument(ClassInfo ci) {
+            for (Enumeration<?> e = ci.getRoutines().elements(); e.hasMoreElements(); ) {
+                Routine routine = (Routine) e.nextElement();
+                routine.addBefore(CLASS_METRIC_TRACKER, METHOD_INCR_METHOD_COUNT, 0 /* could be anything, we don't care */);
+            }
+        }
+    }
+
+    private static class AllocTracker {
+        private static final String METHOD_INCR_ALLOC_COUNT = "incrAllocCount";
+
+        public static void instrument(ClassInfo ci) {
+            for (Enumeration<?> e = ci.getRoutines().elements(); e.hasMoreElements(); ) {
+                Routine routine = (Routine) e.nextElement();
+
+                for (Enumeration<?> b = routine.getBasicBlocks().elements(); b.hasMoreElements(); ) {
+                    BasicBlock bb = (BasicBlock) b.nextElement();
+
+                    int allocCount = 0;
+                    Instruction instr;
+                    for (int addr = bb.getOldStartAddress(); addr < bb.getOldEndAddress(); addr += instr.getLength()) {
+                        instr = routine.getInstruction(addr);
+                        int opcode=instr.getOpcode();
+                        if ((opcode==InstructionTable.NEW) ||
+                            (opcode==InstructionTable.newarray) ||
+                            (opcode==InstructionTable.anewarray) ||
+                            (opcode==InstructionTable.multianewarray)) {
+                            allocCount++;
+                        }
+                    }
+
+                    bb.addBefore(CLASS_METRIC_TRACKER, METHOD_INCR_ALLOC_COUNT, allocCount);
+                }
+            }
+        }
+    }
+
+    private static class LSTracker {
+        private static final String METHOD_INCR_LOAD_COUNT = "incrAllocCount";
+        private static final String METHOD_INCR_LOAD_FIELD_COUNT = "incrAllocCount";
+        private static final String METHOD_INCR_STORE_COUNT = "incrAllocCount";
+        private static final String METHOD_INCR_STORE_FIELD_COUNT = "incrAllocCount";
+
+        public static void instrument(ClassInfo ci) {
+            for (Enumeration<?> e = ci.getRoutines().elements(); e.hasMoreElements(); ) {
+                Routine routine = (Routine) e.nextElement();
+
+                for (Enumeration<?> b = routine.getBasicBlocks().elements(); b.hasMoreElements(); ) {
+                    BasicBlock bb = (BasicBlock) b.nextElement();
+
+                    int loadCount = 0;
+                    int loadFieldCount = 0;
+                    int storeCount = 0;
+                    int storeFieldCount = 0;
+                    Instruction instr;
+                    for (int addr = bb.getOldStartAddress(); addr < bb.getOldEndAddress(); addr += instr.getLength()) {
+                        instr = routine.getInstruction(addr);
+                        int opcode = instr.getOpcode();
+                        switch (opcode) {
+                            case InstructionTable.getfield:
+                                loadFieldCount++;
+                                break;
+                            case InstructionTable.putfield:
+                                storeFieldCount++;
+                                break;
+                            default:
+                                short type = InstructionTable.InstructionTypeTable[opcode];
+                                switch(type) {
+                                    case InstructionTable.LOAD_INSTRUCTION:
+                                        loadCount++;
+                                        break;
+                                    case InstructionTable.STORE_INSTRUCTION:
+                                        storeCount++;
+                                        break;
+                                }
+                        }
+                    }
+
+                    if (loadCount != 0)
+                        bb.addBefore(CLASS_METRIC_TRACKER, METHOD_INCR_LOAD_COUNT, loadCount);
+                    if (storeCount != 0)
+                        bb.addBefore(CLASS_METRIC_TRACKER, METHOD_INCR_STORE_COUNT, storeCount);
+                    if (loadFieldCount != 0)
+                        bb.addBefore(CLASS_METRIC_TRACKER, METHOD_INCR_LOAD_FIELD_COUNT, loadFieldCount);
+                    if (storeFieldCount != 0)
+                        bb.addBefore(CLASS_METRIC_TRACKER, METHOD_INCR_STORE_FIELD_COUNT, storeFieldCount);
+                }
+            }
+        }
+    }
+
+    private static class BranchTracker {
+        private static final String METHOD_SAVE_BRANCH_OUTCOME = "saveBranchOutcome";
+
+        public static void instrument(ClassInfo ci) {
+            for (Enumeration<?> e = ci.getRoutines().elements(); e.hasMoreElements(); ) {
+                Routine routine = (Routine) e.nextElement();
+
+                for (Enumeration<?> b = routine.getBasicBlocks().elements(); b.hasMoreElements(); ) {
+                    BasicBlock bb = (BasicBlock) b.nextElement();
+                    Instruction endInstr = routine.getInstruction(bb.getEndAddress());
+                    short endInstrType = InstructionTable.InstructionTypeTable[endInstr.getOpcode()];
+                    if (endInstrType == InstructionTable.CONDITIONAL_INSTRUCTION) {
+                        endInstr.addBefore(CLASS_METRIC_TRACKER, METHOD_SAVE_BRANCH_OUTCOME, "BranchOutcome");
+                    }
+                }
+            }
+        }
     }
 }

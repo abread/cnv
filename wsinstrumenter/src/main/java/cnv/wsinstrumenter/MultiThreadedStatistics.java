@@ -125,7 +125,7 @@ public class MultiThreadedStatistics {
 
                     int allocCount = 0;
                     Instruction instr;
-                    for (int addr = bb.getOldStartAddress(); addr < bb.getOldEndAddress(); addr += instr.getLength()) {
+                    for (int addr = bb.getStartAddress(); addr < bb.getEndAddress(); addr += instr.getLength()) {
                         instr = routine.getInstruction(addr);
                         int opcode=instr.getOpcode();
                         if ((opcode==InstructionTable.NEW) ||
@@ -136,7 +136,8 @@ public class MultiThreadedStatistics {
                         }
                     }
 
-                    bb.addBefore(CLASS_METRIC_TRACKER, METHOD_INCR_ALLOC_COUNT, allocCount);
+                    if (allocCount != 0)
+                        bb.addBefore(CLASS_METRIC_TRACKER, METHOD_INCR_ALLOC_COUNT, allocCount);
                 }
             }
         }
@@ -160,26 +161,20 @@ public class MultiThreadedStatistics {
                     int storeCount = 0;
                     int storeFieldCount = 0;
                     Instruction instr;
-                    for (int addr = bb.getOldStartAddress(); addr < bb.getOldEndAddress(); addr += instr.getLength()) {
+                    for (int addr = bb.getStartAddress(); addr < bb.getEndAddress(); addr += instr.getLength()) {
                         instr = routine.getInstruction(addr);
                         int opcode = instr.getOpcode();
-                        switch (opcode) {
-                            case InstructionTable.getfield:
-                                loadFieldCount++;
-                                break;
-                            case InstructionTable.putfield:
-                                storeFieldCount++;
-                                break;
-                            default:
-                                short type = InstructionTable.InstructionTypeTable[opcode];
-                                switch(type) {
-                                    case InstructionTable.LOAD_INSTRUCTION:
-                                        loadCount++;
-                                        break;
-                                    case InstructionTable.STORE_INSTRUCTION:
-                                        storeCount++;
-                                        break;
-                                }
+                        if (opcode == InstructionTable.getfield) {
+                            loadFieldCount++;
+                        } else if (opcode == InstructionTable.putfield) {
+                            storeFieldCount++;
+                        } else {
+                            short type = InstructionTable.InstructionTypeTable[opcode];
+                            if (type == InstructionTable.LOAD_INSTRUCTION) {
+                                loadCount++;
+                            } else if (type == InstructionTable.STORE_INSTRUCTION) {
+                                storeCount++;
+                            }
                         }
                     }
 

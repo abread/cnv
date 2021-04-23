@@ -68,11 +68,11 @@ public class MultiThreadedStatistics {
     public static void instrumentFile(Path in_path, Path out_path) {
         ClassInfo ci = new ClassInfo(in_path.toString());
 
-        //AllocTracker.instrument(ci);
-        //LSTracker.instrument(ci);
-        //BranchTracker.instrument(ci);
+        AllocTracker.instrument(ci);
+        LSTracker.instrument(ci);
+        BranchTracker.instrument(ci);
         InstrTracker.instrument(ci);
-        //MethodCallTracker.instrument(ci);
+        MethodCallTracker.instrument(ci);
 
         ci.write(out_path.toString());
     }

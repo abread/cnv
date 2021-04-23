@@ -143,10 +143,10 @@ public class MultiThreadedStatistics {
     }
 
     private static class LSTracker {
-        private static final String METHOD_INCR_LOAD_COUNT = "incrAllocCount";
-        private static final String METHOD_INCR_LOAD_FIELD_COUNT = "incrAllocCount";
-        private static final String METHOD_INCR_STORE_COUNT = "incrAllocCount";
-        private static final String METHOD_INCR_STORE_FIELD_COUNT = "incrAllocCount";
+        private static final String METHOD_INCR_LOAD_COUNT = "incrLoadCount";
+        private static final String METHOD_INCR_LOAD_FIELD_COUNT = "incrLoadFieldCount";
+        private static final String METHOD_INCR_STORE_COUNT = "incrStoreCount";
+        private static final String METHOD_INCR_STORE_FIELD_COUNT = "incrStoreFieldCount";
 
         public static void instrument(ClassInfo ci) {
             for (Enumeration<?> e = ci.getRoutines().elements(); e.hasMoreElements(); ) {

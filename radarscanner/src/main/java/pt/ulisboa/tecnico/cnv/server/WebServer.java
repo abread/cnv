@@ -52,12 +52,21 @@ public class WebServer {
                 .create(new InetSocketAddress(WebServer.sap.getServerAddress(), WebServer.sap.getServerPort()), 0);
 
         server.createContext("/scan", new MyHandler());
+        server.createContext("/test", new TestHandler());
 
         // be aware! infinite pool of threads!
         server.setExecutor(Executors.newCachedThreadPool());
         server.start();
 
         System.out.println(server.getAddress().toString());
+    }
+
+    static class TestHandler implements HttpHandler {
+        @Override
+        public void handle(final HttpExchange t) throws IOException {
+            t.sendResponseHeaders(200, 0);
+            t.getResponseBody().close();
+        }
     }
 
     static class MyHandler implements HttpHandler {

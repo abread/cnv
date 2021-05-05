@@ -17,6 +17,7 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 
+import pt.ulisboa.tecnico.cnv.server.MetricTracker.Metrics;
 import pt.ulisboa.tecnico.cnv.solver.Solver;
 import pt.ulisboa.tecnico.cnv.solver.SolverFactory;
 
@@ -24,8 +25,9 @@ import javax.imageio.ImageIO;
 
 public class WebServer {
 
-    static ServerArgumentParser sap = null;
-    static SolverFactory solverFactory;
+    private static ServerArgumentParser sap = null;
+    private static SolverFactory solverFactory;
+    private static MetricUploader metricUploader;
     static {
         // just create a dummy metric hold to prevent instrumented code in the main thread from panicking
         MetricTracker.requestStart(new String[0]);
@@ -34,10 +36,11 @@ public class WebServer {
     }
 
     public static void main(final String[] args) throws Exception {
-
         try {
             // Get user-provided flags.
             WebServer.sap = new ServerArgumentParser(args);
+
+            metricUploader = new MetricUploader();
         } catch (Exception e) {
             System.out.println(e);
             return;
@@ -139,7 +142,13 @@ public class WebServer {
                 return;
             }
 
-            MetricTracker.requestEnd().print();
+            Metrics results = MetricTracker.requestEnd();
+            //results.print();
+            try {
+                metricUploader.upload(results);
+            } catch (Exception e) {
+                System.err.println("Could not upload instrumentation data: " + e.getMessage());
+            }
 
             // Send response to browser.
             final Headers hdrs = t.getResponseHeaders();

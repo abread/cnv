@@ -17,6 +17,7 @@ repositories {
 
 dependencies {
     implementation 'com.sun.net.httpserver:http:20070405'
+
     implementation platform('com.amazonaws:aws-java-sdk-bom:1.11.998')
     implementation 'com.amazonaws:aws-java-sdk-dynamodb'
 

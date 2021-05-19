@@ -13,6 +13,10 @@ repositories {
 }
 
 dependencies {
+    implementation 'com.sun.net.httpserver:http:20070405'
+    implementation 'org.apache.httpcomponents.client5:httpclient5:5.1'
+    implementation project(':radarscanner')
+
     implementation platform('com.amazonaws:aws-java-sdk-bom:1.11.998')
     implementation 'com.amazonaws:aws-java-sdk-ec2'
     implementation 'com.amazonaws:aws-java-sdk-cloudwatch'

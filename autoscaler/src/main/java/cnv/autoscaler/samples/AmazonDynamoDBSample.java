@@ -1,4 +1,4 @@
-package cnv.autoscaler;
+package cnv.autoscaler.samples;
 
 /*
  * Copyright 2012-2021 Amazon.com, Inc. or its affiliates. All Rights Reserved.

@@ -4,8 +4,8 @@ plugins {
 
 group 'cnv.autoscaler'
 version '1.0-SNAPSHOT'
-sourceCompatibility = 1.7
-targetCompatibility = 1.7
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
 mainClassName = 'cnv.autoscaler.Main'
 
 repositories {
@@ -15,7 +15,6 @@ repositories {
 dependencies {
     implementation 'com.sun.net.httpserver:http:20070405'
     implementation 'org.apache.httpcomponents.client5:httpclient5:5.1'
-    implementation project(':radarscanner')
 
     implementation platform('com.amazonaws:aws-java-sdk-bom:1.11.998')
     implementation 'com.amazonaws:aws-java-sdk-ec2'

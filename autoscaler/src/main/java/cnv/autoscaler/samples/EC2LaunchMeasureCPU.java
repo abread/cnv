@@ -1,4 +1,4 @@
-package cnv.autoscaler;
+package cnv.autoscaler.samples;
 
 /* 2016-20 Edited by Luis Veiga and Joao Garcia */
 import java.util.HashSet;
@@ -142,7 +142,7 @@ public class EC2LaunchMeasureCPU {
             }
         } catch (AmazonServiceException ase) {
             System.out.println("Caught Exception: " + ase.getMessage());
-            System.out.println("Reponse Status Code: " + ase.getStatusCode());
+            System.out.println("Response Status Code: " + ase.getStatusCode());
             System.out.println("Error Code: " + ase.getErrorCode());
             System.out.println("Request ID: " + ase.getRequestId());
         }

@@ -1,4 +1,4 @@
-package cnv.autoscaler;
+package cnv.autoscaler.samples;
 
 /* 2016-20 Edited by Luis Veiga and Joao Garcia */
 import java.util.HashSet;
@@ -26,7 +26,7 @@ import com.amazonaws.services.cloudwatch.model.Datapoint;
 import com.amazonaws.services.cloudwatch.model.GetMetricStatisticsRequest;
 import com.amazonaws.services.cloudwatch.model.GetMetricStatisticsResult;
 
-public class EC2LaunchMeasureCPU {
+public class EC2Helpers {
 
     /*
      * Before running the code: Fill in your AWS access credentials in the provided

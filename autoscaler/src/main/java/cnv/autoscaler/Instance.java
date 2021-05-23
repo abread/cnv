@@ -4,64 +4,66 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.logging.Logger;
 
 public class Instance {
+    private Logger logger;
     private String id;
     private String baseUri;
 
     private boolean isStopping = false;
-    private long lastUpdate;
-    private Map<UUID, Long> requestRemainingTimeEstimates = new HashMap<>();
+    private Map<UUID, Long> requestLoadEstimates = new HashMap<>();
 
     public Instance(String id, String baseUri) {
         this.id = id;
         this.baseUri = baseUri;
+
+        logger = Logger.getLogger(Instance.class.getName() + ":" + id);
     }
 
-    public synchronized Optional<UUID> requestStart(long timeEstimateMilliseconds) {
+    public synchronized Optional<UUID> requestStart(long loadEstimate) {
         if (isStopping) {
             return Optional.empty();
         }
 
         UUID id = UUID.randomUUID();
-        updateTimeEstimates(requestRemainingTimeEstimates.size() + 1);
-        requestRemainingTimeEstimates.put(id, timeEstimateMilliseconds * requestRemainingTimeEstimates.size());
+        requestLoadEstimates.put(id, Math.max(loadEstimate, 1L));
         return Optional.of(id);
     }
 
     public synchronized void requestEnd(UUID requestId) {
-        updateTimeEstimates(requestRemainingTimeEstimates.size() - 1);
-        requestRemainingTimeEstimates.remove(requestId);
+        requestLoadEstimates.remove(requestId);
 
-        if (isStopping && requestRemainingTimeEstimates.isEmpty()) {
+        if (isStopping && requestLoadEstimates.isEmpty()) {
             this.stop();
         }
-    }
-
-    private void updateTimeEstimates(int newSize) {
-        long now = System.currentTimeMillis();
-        long delta = now - lastUpdate;
-        int oldSize = requestRemainingTimeEstimates.size();
-
-        requestRemainingTimeEstimates
-            .replaceAll((_k, oldEstimate) -> Math.max(1, (oldEstimate - delta) / oldSize * newSize));
-
-        lastUpdate = now;
     }
 
     public synchronized void stop() {
         isStopping = true;
 
-        if (!requestRemainingTimeEstimates.isEmpty()) {
+        if (!requestLoadEstimates.isEmpty()) {
             return; // do it later (when requests are done)
         }
     }
 
     public synchronized long currentLoad() {
-        return requestRemainingTimeEstimates
+        return requestLoadEstimates
             .values()
             .stream()
             .reduce(0L, Long::sum);
+    }
+
+    public synchronized int currentRequestCount() {
+        return requestLoadEstimates.size();
+    }
+
+    public double getAvgCpuLoad() {
+        if (currentRequestCount() > 0) {
+            return 1;
+        } else {
+            return 0;
+        }
     }
 
     public String getBaseUri() {
@@ -77,10 +79,16 @@ public class Instance {
             super(awsMetadata.getInstanceId(), "http://" + awsMetadata.getPublicDnsName() + ":8000");
         }
 
+        public double getAvgCpuLoad() {
+            return AwsInstanceManager.getAvgCpuUsage(this.id())
+                // fallback to local approximation when CloudWatch is unavailable
+                .orElseGet(() -> super.getAvgCpuLoad());
+        }
+
         public synchronized void stop() {
             super.stop();
 
-            if (this.currentLoad() == 0) {
+            if (this.currentRequestCount() == 0) {
                 AwsInstanceManager.terminateInstance(this.id());
             }
         }

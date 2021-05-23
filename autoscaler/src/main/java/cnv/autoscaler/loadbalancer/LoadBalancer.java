@@ -1,5 +1,6 @@
 package cnv.autoscaler.loadbalancer;
 
+import java.util.logging.Logger;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
@@ -11,12 +12,11 @@ import cnv.autoscaler.Instance;
 import cnv.autoscaler.InstanceRegistry;
 
 public class LoadBalancer {
+    private Logger logger = Logger.getLogger(LoadBalancer.class.getName());
 
     private final HttpServer server;
 
     public LoadBalancer(InstanceRegistry registry, String address, int port) throws IOException {
-        registry.add(new Instance("localhost:8000", "http://localhost:8000"));
-
         server = HttpServer.create(new InetSocketAddress(address, port), 0);
         server.createContext("/scan", new RoundRobinLBStrategy(registry));
 

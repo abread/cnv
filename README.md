@@ -28,13 +28,13 @@ Pick any availability zone and stick to it. We prefer `eu-west-2`.
 
 0. Build the project
 1. Prepare the web server base image:
-  1.1. Create a new t2.micro VM on EC2 running Amazon Linux (64bit x86) with:
+    1. Create a new t2.micro VM on EC2 running Amazon Linux (64bit x86) with:
     * at least 8GB of storage,
     * auto-assign public IP address enabled,
     * in a new security group `ssh` which allows all outbound traffic to anywhere, and all SSH inbound traffic from anywhere,
     * with some keypair you own;
-  1.2. Copy the radarscanner zip using `scp` to the VM to `/home/ec2-user/radarscanner.zip`
-  1.3. Run the following commands through SSH:
+    2. Copy the radarscanner zip using `scp` to the VM to `/home/ec2-user/radarscanner.zip`
+    3. Run the following commands through SSH:
        ```bash
        sudo -i
        # now in the root shell:
@@ -53,9 +53,9 @@ Pick any availability zone and stick to it. We prefer `eu-west-2`.
 
        # you'll need to hit Ctrl+D or input "exit<ENTER>" twice to logout
        ```
-  1.4. Create an EC2 image `ami-radarscannerws` from the VM (make sure the *No reboot* option is **disabled**);
-  1.5. **WAIT** for the image to have an *available* status (open the *AMIs* page to check)
-  1.6. Terminate the instance after the image is created to save resources.
+    4. Create an EC2 image `ami-radarscannerws` from the VM (make sure the *No reboot* option is **disabled**);
+    5. **WAIT** for the image to have an *available* status (open the *AMIs* page to check)
+    6. Terminate the instance after the image is created to save resources.
 2. Create an EC2 launch configuration `launchcfg-radarscannerws` with:
   * AMI: `ami-radarscannerws`, created in step 1
   * EC2 instance detailed monitoring within CloudWatch enabled

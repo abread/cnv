@@ -17,8 +17,6 @@ public class Main {
         int port = Integer.parseInt(System.getProperty("lb.port", "8000"));
 
         InstanceRegistry registry = new InstanceRegistry();
-        registry.add(new Instance("localhost:8000", "http://localhost:8000"));
-
         LoadBalancer lb = new LoadBalancer(registry, address, port);
         AutoScaler as = new AutoScaler(registry);
 

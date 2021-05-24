@@ -5,6 +5,8 @@ import java.util.Map;
 import java.util.UUID;
 
 import com.amazonaws.AmazonClientException;
+import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.auth.InstanceProfileCredentialsProvider;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
@@ -32,13 +34,12 @@ public class MetricUploader {
     }
 
     private static AmazonDynamoDB createDynamoDBClient() {
-        ProfileCredentialsProvider credentialsProvider = new ProfileCredentialsProvider();
+        AWSCredentialsProvider credentialsProvider;
         try {
+            credentialsProvider = new ProfileCredentialsProvider();
             credentialsProvider.getCredentials();
-        } catch (Exception e) {
-            throw new AmazonClientException("Cannot load the credentials from the credential profiles file. "
-                    + "Please make sure that your credentials file is at the correct "
-                    + "location (~/.aws/credentials), and is in valid format.", e);
+        } catch (Exception ignored) {
+            credentialsProvider = InstanceProfileCredentialsProvider.getInstance();
         }
 
         return AmazonDynamoDBClientBuilder.standard().withCredentials(credentialsProvider)

@@ -23,4 +23,8 @@ public class InstanceRegistry {
         logger.info(String.format("Instance %s ready", instance.id()));
         readyInstances.put(instance.id(), instance);
     }
+
+    public Instance get(String id) {
+        return readyInstances.get(id);
+    }
 }

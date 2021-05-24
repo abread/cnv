@@ -1,13 +1,18 @@
 package cnv.autoscaler;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.logging.Logger;
 
+import org.apache.hc.client5.http.classic.methods.HttpGet;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+
 public class Instance {
-    private Logger logger;
+    protected Logger logger;
     private String id;
     private String baseUri;
 
@@ -74,9 +79,22 @@ public class Instance {
         return this.id;
     }
 
+    public boolean isHealthy() {
+        try (CloseableHttpClient client = HttpClients.createDefault()) {
+            final String uri = getBaseUri() + "/test";
+            logger.info("Checking health of "+uri);
+            final HttpGet innerRequest = new HttpGet(uri);
+            client.execute(innerRequest).close();
+            return true;
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
     public static class AwsInstance extends Instance {
         public AwsInstance(com.amazonaws.services.ec2.model.Instance awsMetadata) {
-            super(awsMetadata.getInstanceId(), "http://" + awsMetadata.getPublicDnsName() + ":8000");
+            super(awsMetadata.getInstanceId(), "http://" + AwsInstanceManager.getPublicDnsName(awsMetadata.getInstanceId()) + ":8000");
+            logger.info(awsMetadata.toString());
         }
 
         public double getAvgCpuLoad() {
@@ -89,7 +107,7 @@ public class Instance {
             super.stop();
 
             if (this.currentRequestCount() == 0) {
-                AwsInstanceManager.terminateInstance(this.id());
+                AwsInstanceManager.terminateInstances(this.id());
             }
         }
     }

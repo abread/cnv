@@ -28,6 +28,10 @@ public class WebServer {
     private static ServerArgumentParser sap = null;
     private static SolverFactory solverFactory;
     private static MetricUploader metricUploader;
+
+    private static final int MAX_REQUESTS_PER_CPU = 5;
+    private static final int N_THREADS = MAX_REQUESTS_PER_CPU * Runtime.getRuntime().availableProcessors();
+
     static {
         // just create a dummy metric hold to prevent instrumented code in the main thread from panicking
         MetricTracker.requestStart(new String[0]);
@@ -42,7 +46,8 @@ public class WebServer {
 
             metricUploader = new MetricUploader();
         } catch (Exception e) {
-            System.out.println(e);
+            System.err.println("Could not initialize server: " + e);
+            e.printStackTrace();
             return;
         }
 
@@ -57,8 +62,7 @@ public class WebServer {
         server.createContext("/scan", new MyHandler());
         server.createContext("/test", new TestHandler());
 
-        // be aware! infinite pool of threads!
-        server.setExecutor(Executors.newCachedThreadPool());
+        server.setExecutor(Executors.newFixedThreadPool(N_THREADS));
         server.start();
 
         System.out.println(server.getAddress().toString());

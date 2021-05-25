@@ -1,12 +1,10 @@
 package cnv.autoscaler;
 
-import com.amazonaws.AmazonServiceException.ErrorType;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.InstanceProfileCredentialsProvider;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
-import com.amazonaws.internal.CredentialsEndpointProvider;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder;
 import com.amazonaws.services.cloudwatch.model.Dimension;
@@ -19,7 +17,6 @@ import com.amazonaws.services.ec2.model.AuthorizeSecurityGroupIngressRequest;
 import com.amazonaws.services.ec2.model.CreateSecurityGroupRequest;
 import com.amazonaws.services.ec2.model.DescribeImagesRequest;
 import com.amazonaws.services.ec2.model.DescribeImagesResult;
-import com.amazonaws.services.ec2.model.DescribeInstanceAttributeRequest;
 import com.amazonaws.services.ec2.model.DescribeInstancesRequest;
 import com.amazonaws.services.ec2.model.Filter;
 import com.amazonaws.services.ec2.model.IamInstanceProfileSpecification;
@@ -29,7 +26,6 @@ import com.amazonaws.services.ec2.model.IpRange;
 import com.amazonaws.services.ec2.model.RunInstancesRequest;
 import com.amazonaws.services.ec2.model.RunInstancesResult;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
-import com.amazonaws.services.ec2.model.UpdateSecurityGroupRuleDescriptionsIngressRequest;
 import com.amazonaws.services.identitymanagement.AmazonIdentityManagement;
 import com.amazonaws.services.identitymanagement.AmazonIdentityManagementClientBuilder;
 import com.amazonaws.services.identitymanagement.model.AddRoleToInstanceProfileRequest;
@@ -37,20 +33,13 @@ import com.amazonaws.services.identitymanagement.model.AttachRolePolicyRequest;
 import com.amazonaws.services.identitymanagement.model.CreateInstanceProfileRequest;
 import com.amazonaws.services.identitymanagement.model.CreatePolicyRequest;
 import com.amazonaws.services.identitymanagement.model.CreateRoleRequest;
-import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
-import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClient;
-import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder;
-import com.amazonaws.services.securitytoken.model.GetCallerIdentityRequest;
 
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -113,7 +102,7 @@ public class AwsInstanceManager {
     }
 
     public static List<Instance> launchInstances(int n) {
-        final long WAIT_TIME = 2 * 1000; // ms
+        final long WAIT_TIME = 1 * 1000; // ms
         RunInstancesRequest runInstancesRequest = new RunInstancesRequest();
 
         runInstancesRequest.withImageId(INSTANCE_IMAGE_ID).withInstanceType(INSTANCE_TYPE).withMinCount(n)
@@ -179,7 +168,6 @@ public class AwsInstanceManager {
             // it already exists, probably (if not the next request will fail anyway)
         }
 
-        // FIXME: The permissions were not being applied, test if this is now working
         IpRange allIpv4 = new IpRange().withCidrIp("0.0.0.0/0");
 
         IpPermission tcp8000 = new IpPermission().withIpProtocol("tcp").withToPort(8000).withFromPort(8000)

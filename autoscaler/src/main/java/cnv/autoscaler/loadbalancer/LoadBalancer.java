@@ -8,7 +8,6 @@ import java.util.concurrent.Executors;
 
 import com.sun.net.httpserver.HttpServer;
 
-import cnv.autoscaler.Instance;
 import cnv.autoscaler.InstanceRegistry;
 
 public class LoadBalancer {
@@ -18,7 +17,7 @@ public class LoadBalancer {
 
     public LoadBalancer(InstanceRegistry registry, String address, int port) throws IOException {
         server = HttpServer.create(new InetSocketAddress(address, port), 0);
-        server.createContext("/scan", new RoundRobinLBStrategy(registry));
+        server.createContext("/scan", new MinLoadLBStrategy(registry));
 
         // be aware! infinite pool of threads!
         server.setExecutor(Executors.newCachedThreadPool());

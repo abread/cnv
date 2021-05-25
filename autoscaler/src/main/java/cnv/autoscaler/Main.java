@@ -17,6 +17,7 @@ public class Main {
         int port = Integer.parseInt(System.getProperty("lb.port", "8000"));
 
         InstanceRegistry registry = new InstanceRegistry();
+
         LoadBalancer lb = new LoadBalancer(registry, address, port);
         AutoScaler as = new AutoScaler(registry);
 

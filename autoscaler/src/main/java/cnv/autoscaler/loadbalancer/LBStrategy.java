@@ -3,8 +3,6 @@ package cnv.autoscaler.loadbalancer;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.logging.Logger;
 
@@ -26,14 +24,14 @@ public abstract class LBStrategy implements HttpHandler {
 
     public void handle(final HttpExchange t) throws IOException {
         // Get the query.
-        final String query = t.getRequestURI().getQuery();
+        final String queryString = t.getRequestURI().getQuery();
 
-        logger.info("Request received. Query: " + query);
+        logger.info("Request received. Query: " + queryString);
 
-        RequestManager requestManager = this.startRequest(query);
+        RequestManager requestManager = this.startRequest(queryString);
 
         final CloseableHttpClient client = HttpClients.createDefault();
-        final HttpGet innerRequest = new HttpGet(requestManager.getInstance().getBaseUri() + "/scan" + t.getRequestURI().getQuery());
+        final HttpGet innerRequest = new HttpGet(requestManager.getInstance().getBaseUri() + "/scan?" + queryString);
         final CloseableHttpResponse innerResp = client.execute(innerRequest);
 
         final Headers outerRespHeaders = t.getResponseHeaders();
@@ -46,19 +44,22 @@ public abstract class LBStrategy implements HttpHandler {
 
         final HttpEntity innerRespBody = innerResp.getEntity();
 
-        t.sendResponseHeaders(innerResp.getCode(), innerRespBody.getContentLength());
+        long contentLength = innerRespBody.getContentLength();
+        t.sendResponseHeaders(innerResp.getCode(), contentLength);
 
         final OutputStream os = t.getResponseBody();
         final InputStream is = innerRespBody.getContent();
         final int BUFFER_SIZE = 2048;
         final byte[] buffer = new byte[BUFFER_SIZE];
 
-        while (is.available() > 0) {
-            int nToRead = Math.min(is.available(), BUFFER_SIZE);
+        long bytesWritten = 0;
+        while (bytesWritten < contentLength) {
+            int nToRead = Math.max(Math.min(is.available(), BUFFER_SIZE), BUFFER_SIZE / 2);
             int nRead = is.read(buffer, 0, nToRead);
             if (nRead > 0) {
                 os.write(buffer, 0, nRead);
             }
+            bytesWritten += nRead;
         }
 
         os.close();

@@ -146,13 +146,9 @@ public class WebServer {
                 return;
             }
 
-            Metrics results = MetricTracker.requestEnd();
+            final Metrics results = MetricTracker.requestEnd();
             //results.print();
-            try {
-                metricUploader.upload(results);
-            } catch (Exception e) {
-                System.err.println("Could not upload instrumentation data: " + e.getMessage());
-            }
+            metricUploader.upload(results);
 
             // Send response to browser.
             final Headers hdrs = t.getResponseHeaders();

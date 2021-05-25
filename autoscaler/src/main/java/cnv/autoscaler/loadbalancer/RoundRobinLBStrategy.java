@@ -1,5 +1,7 @@
 package cnv.autoscaler.loadbalancer;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -18,21 +20,21 @@ public class RoundRobinLBStrategy extends LBStrategy {
     }
 
     public RequestManager startRequest(String queryString) {
-        Instance[] instances;
+        List<Instance> instances;
         Optional<UUID> requestId = Optional.empty();
         int idx;
 
-        long loadEstimate = 1000; // TODO: compute from querystring
+        long loadEstimate = 1000; // TODO: compute load estimation, maybe?
 
         do {
-            instances = (Instance[]) registry.readyInstances().toArray();
+            instances = new ArrayList<>(registry.readyInstances());
 
-            int size = instances.length;
+            int size = instances.size();
             idx = this.idx.updateAndGet(v -> (v + 1) % size);
 
-            requestId = instances[idx].requestStart(loadEstimate);
+            requestId = instances.get(idx).requestStart(loadEstimate);
         } while (!requestId.isPresent());
 
-        return new RequestManager(instances[idx], requestId.get());
+        return new RequestManager(instances.get(idx), requestId.get());
     }
 }

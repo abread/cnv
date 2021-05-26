@@ -3,7 +3,6 @@ package cnv.autoscaler.loadbalancer;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.UUID;
 import java.util.logging.Logger;
 
 import com.sun.net.httpserver.Headers;
@@ -17,8 +16,6 @@ import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.HttpEntity;
 
-import cnv.autoscaler.Instance;
-
 public abstract class LBStrategy implements HttpHandler {
     private Logger logger = Logger.getLogger(LBStrategy.class.getName());
 
@@ -28,7 +25,7 @@ public abstract class LBStrategy implements HttpHandler {
 
         logger.info("Request received. Query: " + queryString);
 
-        RequestManager requestManager = this.startRequest(queryString);
+        Request requestManager = this.startRequest(queryString);
 
         final CloseableHttpClient client = HttpClients.createDefault();
         final HttpGet innerRequest = new HttpGet(requestManager.getInstance().getBaseUri() + "/scan?" + queryString);
@@ -72,23 +69,5 @@ public abstract class LBStrategy implements HttpHandler {
         logger.info("> Sent response to " + t.getRemoteAddress().toString());
     }
 
-    public abstract RequestManager startRequest(String queryString);
-
-    public static class RequestManager {
-        private Instance instance;
-        private UUID id;
-
-        public RequestManager(Instance instance, UUID id) {
-            this.instance = instance;
-            this.id = id;
-        }
-
-        public Instance getInstance() {
-            return this.instance;
-        }
-
-        public void finished() {
-            this.instance.requestEnd(this.id);
-        }
-    }
+    public abstract Request startRequest(String queryString);
 }

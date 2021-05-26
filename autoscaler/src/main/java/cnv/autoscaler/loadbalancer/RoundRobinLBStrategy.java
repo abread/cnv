@@ -19,9 +19,9 @@ public class RoundRobinLBStrategy extends LBStrategy {
         this.registry = registry;
     }
 
-    public RequestManager startRequest(String queryString) {
+    public Request startRequest(String queryString) {
         List<Instance> instances;
-        Optional<UUID> requestId = Optional.empty();
+        Optional<Request> request = Optional.empty();
         int idx;
 
         do {
@@ -30,9 +30,9 @@ public class RoundRobinLBStrategy extends LBStrategy {
             int size = instances.size();
             idx = this.idx.updateAndGet(v -> (v + 1) % size);
 
-            requestId = instances.get(idx).requestStart(queryString);
-        } while (!requestId.isPresent());
+            request = instances.get(idx).requestStart(queryString);
+        } while (!request.isPresent());
 
-        return new RequestManager(instances.get(idx), requestId.get());
+        return request.get();
     }
 }

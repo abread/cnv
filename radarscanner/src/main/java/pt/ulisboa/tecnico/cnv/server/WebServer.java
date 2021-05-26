@@ -77,11 +77,15 @@ public class WebServer {
     }
 
     static class MyHandler implements HttpHandler {
+        private static final String X_REQUEST_ID_HEADER = "X-LB-Request-ID";
+
         @Override
         public void handle(final HttpExchange t) throws IOException {
 
             // Get the query.
             final String query = t.getRequestURI().getQuery();
+
+            final String requestId = t.getRequestHeaders().get(X_REQUEST_ID_HEADER).get(0);
 
             System.out.println("> Query:\t" + query);
 
@@ -154,6 +158,7 @@ public class WebServer {
             final Headers hdrs = t.getResponseHeaders();
 
             hdrs.add("Content-Type", "image/png");
+            hdrs.add(X_REQUEST_ID_HEADER, requestId);
 
             hdrs.add("Access-Control-Allow-Origin", "*");
             hdrs.add("Access-Control-Allow-Credentials", "true");

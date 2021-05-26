@@ -1,8 +1,11 @@
 package cnv.autoscaler.loadbalancer;
 
+import java.util.UUID;
+
 import cnv.autoscaler.Instance;
 
 public class Request {
+    private UUID id = UUID.randomUUID();
     private Instance instance;
     private RequestParams params;
 
@@ -17,6 +20,10 @@ public class Request {
 
     public RequestParams params() {
         return this.params;
+    }
+
+    public UUID getId() {
+        return this.id;
     }
 
     public void finished() {

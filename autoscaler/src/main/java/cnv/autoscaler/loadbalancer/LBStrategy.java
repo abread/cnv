@@ -18,6 +18,7 @@ import org.apache.hc.core5.http.HttpEntity;
 
 public abstract class LBStrategy implements HttpHandler {
     private Logger logger = Logger.getLogger(LBStrategy.class.getName());
+    private static final String X_REQUEST_ID_HEADER = "X-LB-Request-ID";
 
     public void handle(final HttpExchange t) throws IOException {
         // Get the query.
@@ -25,10 +26,11 @@ public abstract class LBStrategy implements HttpHandler {
 
         logger.info("Request received. Query: " + queryString);
 
-        Request requestManager = this.startRequest(queryString);
+        Request request = this.startRequest(queryString);
 
         final CloseableHttpClient client = HttpClients.createDefault();
-        final HttpGet innerRequest = new HttpGet(requestManager.getInstance().getBaseUri() + "/scan?" + queryString);
+        final HttpGet innerRequest = new HttpGet(request.getInstance().getBaseUri() + "/scan?" + queryString);
+        innerRequest.addHeader(X_REQUEST_ID_HEADER, request.getId().toString());
         final CloseableHttpResponse innerResp = client.execute(innerRequest);
 
         final Headers outerRespHeaders = t.getResponseHeaders();
@@ -64,7 +66,7 @@ public abstract class LBStrategy implements HttpHandler {
         innerResp.close();
         client.close();
 
-        requestManager.finished();
+        request.finished();
 
         logger.info("> Sent response to " + t.getRemoteAddress().toString());
     }

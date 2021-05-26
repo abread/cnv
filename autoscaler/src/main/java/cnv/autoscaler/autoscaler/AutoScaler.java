@@ -13,9 +13,9 @@ import java.util.function.ToDoubleFunction;
 import java.util.function.ToLongFunction;
 import java.util.stream.Collectors;
 
-import cnv.autoscaler.AwsInstanceManager;
 import cnv.autoscaler.Instance;
 import cnv.autoscaler.InstanceRegistry;
+import cnv.autoscaler.aws.AwsInstanceManager;
 
 public class AutoScaler {
     private Logger logger = Logger.getLogger(AutoScaler.class.getName());

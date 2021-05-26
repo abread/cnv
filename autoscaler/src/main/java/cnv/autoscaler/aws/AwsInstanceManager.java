@@ -1,4 +1,4 @@
-package cnv.autoscaler;
+package cnv.autoscaler.aws;
 
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
@@ -34,6 +34,8 @@ import com.amazonaws.services.identitymanagement.model.CreateInstanceProfileRequ
 import com.amazonaws.services.identitymanagement.model.CreatePolicyRequest;
 import com.amazonaws.services.identitymanagement.model.CreateRoleRequest;
 
+import cnv.autoscaler.Main;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -66,13 +68,7 @@ public class AwsInstanceManager {
     private final static String INSTANCE_IMAGE_ID;
 
     static {
-        AWSCredentialsProvider credentialsProvider;
-        try {
-            AWSCredentials credentials = new ProfileCredentialsProvider().getCredentials();
-            credentialsProvider = new AWSStaticCredentialsProvider(credentials);
-        } catch (Exception ignored) {
-            credentialsProvider = InstanceProfileCredentialsProvider.getInstance();
-        }
+        AWSCredentialsProvider credentialsProvider = AwsCredentials.credentialsProvider();
 
         ec2 = AmazonEC2ClientBuilder.standard().withRegion(REGION).withCredentials(credentialsProvider).build();
 

@@ -11,9 +11,11 @@ import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 
+import cnv.autoscaler.aws.AwsInstanceManager;
 import cnv.autoscaler.loadbalancer.Request;
 import cnv.autoscaler.loadbalancer.RequestParams;
 import cnv.autoscaler.loadestimate.FastEstimator;
+import cnv.autoscaler.loadestimate.BetterEstimateFetcher;
 
 public class Instance {
     protected Logger logger;
@@ -25,6 +27,8 @@ public class Instance {
 
     private static final AtomicReference<FastEstimator> estimator = new AtomicReference<>(new FastEstimator());
     // TODO: launch background thread that updates the estimator
+
+    private static final BetterEstimateFetcher betterEstimateFetcher = new BetterEstimateFetcher();
 
     public Instance(String id, String baseUri) {
         this.id = id;
@@ -44,9 +48,18 @@ public class Instance {
         long viewportArea = req.params().viewportArea();
         long loadEstimate = Math.max(1L, estimator.get().estimateMethodCount(algo, viewportArea));
 
-
         requestLoadEstimates.put(req, loadEstimate);
+
+        // try to get a better estimate in the meantime (out of critical path)
+        betterEstimateFetcher.queueEstimationRequest(req);
+
         return Optional.of(req);
+    }
+
+    public synchronized void updateRequestEstimate(Request req, long newEstimate) {
+        if (requestLoadEstimates.containsKey(req)) {
+            requestLoadEstimates.put(req, newEstimate);
+        }
     }
 
     public synchronized void requestEnd(Request req) {

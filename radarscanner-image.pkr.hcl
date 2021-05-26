@@ -39,7 +39,7 @@ build {
 
     provisioner "shell" {
         inline = [
-            "sudo yum update",
+            "sudo yum update -y",
             "sudo yum install -y java-1.7.0-openjdk-headless",
             "sudo mkdir -p /opt",
             "cd /opt",

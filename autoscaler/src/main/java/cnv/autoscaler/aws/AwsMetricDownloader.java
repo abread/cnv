@@ -16,6 +16,7 @@ package cnv.autoscaler.aws;
  */
 import java.util.HashMap;
 import java.util.OptionalDouble;
+import java.util.logging.Logger;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
@@ -40,6 +41,7 @@ import cnv.autoscaler.loadbalancer.RequestParams;
  * Amazon DynamoDB service.
  */
 public class AwsMetricDownloader {
+    private final static Logger LOGGER = Logger.getLogger(AwsMetricDownloader.class.getName());
 
     public final static int POSITION_THRESHOLD = 16; // TODO: tune (future work)
     static AmazonDynamoDB dynamoDB;
@@ -80,7 +82,7 @@ public class AwsMetricDownloader {
                     .withAttributeValueList(new AttributeValue().withS(params.algo));
             scanFilter.put("args.strategy", strategyCondition);
             Condition imageCondition = new Condition().withComparisonOperator(ComparisonOperator.EQ.toString())
-                    .withAttributeValueList(new AttributeValue().withS(params.imagePath));
+                    .withAttributeValueList(new AttributeValue().withS("datasets/" + params.imagePath));
             scanFilter.put("args.imagePath", imageCondition);
             addIntervalCondition(scanFilter, "args.x0", params.x0);
             addIntervalCondition(scanFilter, "args.x1", params.x1);
@@ -89,21 +91,19 @@ public class AwsMetricDownloader {
 
             ScanRequest scanRequest = new ScanRequest(METRICS_TABLE_NAME).withScanFilter(scanFilter);
             ScanResult scanResult = dynamoDB.scan(scanRequest);
-            return scanResult.getItems().stream()
-                    .mapToDouble(m -> Double.parseDouble(m.get("methodCount").getN()))
+            return scanResult.getItems().stream().mapToDouble(m -> Double.parseDouble(m.get("methodCount").getN()))
                     .average();
         } catch (AmazonClientException ignored) {
+            LOGGER.warning("Failed to get better estimate for request: " + ignored.getMessage());
             return OptionalDouble.empty();
         }
     }
 
     private static void addIntervalCondition(HashMap<String, Condition> filter, String arg, long value) {
-        Condition gt = new Condition().withComparisonOperator(ComparisonOperator.GT.toString())
-                .withAttributeValueList(new AttributeValue().withN(Long.toString(value - POSITION_THRESHOLD)));
-        filter.put(arg, gt);
-        Condition lt = new Condition().withComparisonOperator(ComparisonOperator.LT.toString())
-                .withAttributeValueList(new AttributeValue().withN(Long.toString(value + POSITION_THRESHOLD)));
-        filter.put(arg, lt);
+        Condition between = new Condition().withComparisonOperator(ComparisonOperator.BETWEEN.toString())
+                .withAttributeValueList(new AttributeValue().withN(Long.toString(value - POSITION_THRESHOLD)),
+                        new AttributeValue().withN(Long.toString(value + POSITION_THRESHOLD)));
+        filter.put(arg, between);
     }
 
 }

@@ -27,48 +27,51 @@ public abstract class LBStrategy implements HttpHandler {
         logger.info("Request received. Query: " + queryString);
 
         Request request = this.startRequest(queryString);
+        try {
+            logger.info(String.format("Request %s running on instance %s", request.getId().toString(), request.getInstance().id()));
 
-        final CloseableHttpClient client = HttpClients.createDefault();
-        final HttpGet innerRequest = new HttpGet(request.getInstance().getBaseUri() + "/scan?" + queryString);
-        innerRequest.addHeader(X_REQUEST_ID_HEADER, request.getId().toString());
-        final CloseableHttpResponse innerResp = client.execute(innerRequest);
+            final CloseableHttpClient client = HttpClients.createDefault();
+            final HttpGet innerRequest = new HttpGet(request.getInstance().getBaseUri() + "/scan?" + queryString);
+            innerRequest.addHeader(X_REQUEST_ID_HEADER, request.getId().toString());
+            final CloseableHttpResponse innerResp = client.execute(innerRequest);
 
-        final Headers outerRespHeaders = t.getResponseHeaders();
-        for (Header header : innerResp.getHeaders()) {
-            // TODO: see if any more of these needs to be filtered
-            if (!header.getName().toLowerCase().equals("content-length")) {
-                outerRespHeaders.add(header.getName(), header.getValue());
+            final Headers outerRespHeaders = t.getResponseHeaders();
+            for (Header header : innerResp.getHeaders()) {
+                // TODO: see if any more of these needs to be filtered
+                if (!header.getName().toLowerCase().equals("content-length")) {
+                    outerRespHeaders.add(header.getName(), header.getValue());
+                }
             }
-        }
 
-        final HttpEntity innerRespBody = innerResp.getEntity();
+            final HttpEntity innerRespBody = innerResp.getEntity();
 
-        long contentLength = innerRespBody.getContentLength();
-        t.sendResponseHeaders(innerResp.getCode(), contentLength);
+            long contentLength = innerRespBody.getContentLength();
+            t.sendResponseHeaders(innerResp.getCode(), contentLength);
 
-        final OutputStream os = t.getResponseBody();
-        final InputStream is = innerRespBody.getContent();
-        final int BUFFER_SIZE = 2048;
-        final byte[] buffer = new byte[BUFFER_SIZE];
+            final OutputStream os = t.getResponseBody();
+            final InputStream is = innerRespBody.getContent();
+            final int BUFFER_SIZE = 2048;
+            final byte[] buffer = new byte[BUFFER_SIZE];
 
-        long bytesWritten = 0;
-        while (bytesWritten < contentLength) {
-            int nToRead = Math.max(Math.min(is.available(), BUFFER_SIZE), BUFFER_SIZE / 2);
-            int nRead = is.read(buffer, 0, nToRead);
-            if (nRead > 0) {
-                os.write(buffer, 0, nRead);
+            long bytesWritten = 0;
+            while (bytesWritten < contentLength) {
+                int nToRead = Math.max(Math.min(is.available(), BUFFER_SIZE), BUFFER_SIZE / 2);
+                int nRead = is.read(buffer, 0, nToRead);
+                if (nRead > 0) {
+                    os.write(buffer, 0, nRead);
+                }
+                bytesWritten += nRead;
             }
-            bytesWritten += nRead;
+
+            os.close();
+            is.close();
+            innerResp.close();
+            client.close();
+
+            logger.info("> Sent response to " + t.getRemoteAddress().toString());
+        } finally {
+            request.finished();
         }
-
-        os.close();
-        is.close();
-        innerResp.close();
-        client.close();
-
-        request.finished();
-
-        logger.info("> Sent response to " + t.getRemoteAddress().toString());
     }
 
     public abstract Request startRequest(String queryString);

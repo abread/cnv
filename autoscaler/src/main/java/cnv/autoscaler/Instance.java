@@ -63,14 +63,16 @@ public class Instance {
         newEstimate = Math.max(newEstimate, 1L);
 
         if (requestLoadEstimates.containsKey(req)) {
-            long prevEstimate = requestLoadEstimates.put(req, newEstimate);
+            logger.info(String.format("Updating estimate for request %s with %d", req.getId().toString(), newEstimate));
 
+            long prevEstimate = requestLoadEstimates.put(req, newEstimate);
             currentLoad.addAndGet(newEstimate - prevEstimate);
         }
     }
 
     public synchronized void requestEnd(Request req) {
-        requestLoadEstimates.remove(req);
+        long estimate = requestLoadEstimates.remove(req);
+        currentLoad.addAndGet(-estimate);
 
         if (isStopping && requestLoadEstimates.isEmpty()) {
             this.stop();
@@ -124,7 +126,6 @@ public class Instance {
     public static class AwsInstance extends Instance {
         public AwsInstance(com.amazonaws.services.ec2.model.Instance awsMetadata) {
             super(awsMetadata.getInstanceId(), "http://" + AwsInstanceManager.getPublicDnsName(awsMetadata.getInstanceId()) + ":8000");
-            logger.info(awsMetadata.toString());
         }
 
         public double getAvgCpuLoad() {

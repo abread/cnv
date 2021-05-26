@@ -9,7 +9,7 @@ targetCompatibility = 1.7
 mainClassName = 'pt.ulisboa.tecnico.cnv.server.WebServer'
 
 // make instrumented code work
-applicationDefaultJvmArgs = ['-XX:-UseSplitVerifier', '-Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts']
+applicationDefaultJvmArgs = ['-XX:-UseSplitVerifier']
 
 repositories {
     mavenCentral()

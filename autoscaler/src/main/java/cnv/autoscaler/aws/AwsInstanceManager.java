@@ -145,7 +145,7 @@ public class AwsInstanceManager {
 
         GetMetricStatisticsResult getMetricStatisticsResult = cloudWatch.getMetricStatistics(request);
 
-        return getMetricStatisticsResult.getDatapoints().stream().map(dp -> dp.getAverage()).findFirst();
+        return getMetricStatisticsResult.getDatapoints().stream().map(dp -> dp.getAverage() / 100 /* use 0-1 percentages */).findFirst();
     }
 
     public static void terminateInstances(String... ids) {

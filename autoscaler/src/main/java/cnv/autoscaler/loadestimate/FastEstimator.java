@@ -29,7 +29,7 @@ public class FastEstimator {
                 return Math.round(gridA * viewportArea + gridB);
             case "PROGRESSIVE_SCAN":
                 return Math.round(progA * viewportArea + progB);
-            case "GREEDY_SCAN":
+            case "GREEDY_RANGE_SCAN":
                 return Math.round(greedyA * viewportArea + greedyB);
             default:
                 return 1; // will just error out in the web server

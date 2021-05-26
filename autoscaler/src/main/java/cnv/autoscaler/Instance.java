@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 
@@ -24,6 +25,7 @@ public class Instance {
 
     private boolean isStopping = false;
     private Map<Request, Long> requestLoadEstimates = new HashMap<>();
+    private AtomicLong currentLoad = new AtomicLong(0);
 
     private static final AtomicReference<FastEstimator> estimator = new AtomicReference<>(new FastEstimator());
     // TODO: launch background thread that updates the estimator
@@ -46,9 +48,10 @@ public class Instance {
 
         String algo = req.params().algo;
         long viewportArea = req.params().viewportArea();
-        long loadEstimate = Math.max(1L, estimator.get().estimateMethodCount(algo, viewportArea));
+        long loadEstimate = estimator.get().estimateMethodCount(algo, viewportArea);
 
-        requestLoadEstimates.put(req, loadEstimate);
+        requestLoadEstimates.put(req, 0L);
+        this.updateRequestEstimate(req, loadEstimate);
 
         // try to get a better estimate in the meantime (out of critical path)
         betterEstimateFetcher.queueEstimationRequest(req);
@@ -57,8 +60,12 @@ public class Instance {
     }
 
     public synchronized void updateRequestEstimate(Request req, long newEstimate) {
+        newEstimate = Math.max(newEstimate, 1L);
+
         if (requestLoadEstimates.containsKey(req)) {
-            requestLoadEstimates.put(req, newEstimate);
+            long prevEstimate = requestLoadEstimates.put(req, newEstimate);
+
+            currentLoad.addAndGet(newEstimate - prevEstimate);
         }
     }
 
@@ -78,11 +85,8 @@ public class Instance {
         }
     }
 
-    public synchronized long currentLoad() {
-        return requestLoadEstimates
-            .values()
-            .stream()
-            .reduce(0L, Long::sum);
+    public long currentLoad() {
+        return currentLoad.get();
     }
 
     public synchronized int currentRequestCount() {

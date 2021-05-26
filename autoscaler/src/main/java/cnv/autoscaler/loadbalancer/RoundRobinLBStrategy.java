@@ -24,15 +24,13 @@ public class RoundRobinLBStrategy extends LBStrategy {
         Optional<UUID> requestId = Optional.empty();
         int idx;
 
-        long loadEstimate = 1000; // TODO: compute load estimation, maybe?
-
         do {
             instances = new ArrayList<>(registry.readyInstances());
 
             int size = instances.size();
             idx = this.idx.updateAndGet(v -> (v + 1) % size);
 
-            requestId = instances.get(idx).requestStart(loadEstimate);
+            requestId = instances.get(idx).requestStart(queryString);
         } while (!requestId.isPresent());
 
         return new RequestManager(instances.get(idx), requestId.get());

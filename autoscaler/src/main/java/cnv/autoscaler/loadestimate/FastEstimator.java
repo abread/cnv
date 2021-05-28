@@ -60,7 +60,7 @@ public class FastEstimator {
             .mapToDouble(r -> Double.valueOf(r.getValue()))
             .average();
 
-        if (estimate.isEmpty()) {
+        if (!estimate.isPresent()) {
             return OptionalLong.empty();
         } else {
             return OptionalLong.of(Math.round(estimate.getAsDouble()));

@@ -70,9 +70,13 @@ public class Instance {
         }
     }
 
-    public synchronized void requestEnd(Request req) {
+    public synchronized void requestEnd(Request req, Optional<Long> methodCount) {
         long estimate = requestLoadEstimates.remove(req);
         currentLoad.addAndGet(-estimate);
+
+        methodCount.ifPresent(c -> {
+            logger.info(String.format("Request %s had %d method calls", req.getId(), c));
+        });
 
         if (isStopping && requestLoadEstimates.isEmpty()) {
             this.stop();

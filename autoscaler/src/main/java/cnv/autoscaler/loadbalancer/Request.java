@@ -1,5 +1,6 @@
 package cnv.autoscaler.loadbalancer;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import cnv.autoscaler.Instance;
@@ -26,7 +27,7 @@ public class Request {
         return this.id;
     }
 
-    public void finished() {
-        this.instance.requestEnd(this);
+    public void finished(Optional<Long> methodCount) {
+        this.instance.requestEnd(this, methodCount);
     }
 }

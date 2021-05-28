@@ -78,6 +78,7 @@ public class WebServer {
 
     static class MyHandler implements HttpHandler {
         private static final String X_REQUEST_ID_HEADER = "X-LB-Request-ID";
+        private static final String X_METHOD_COUNT_HEADER = "X-Method-Count";
 
         @Override
         public void handle(final HttpExchange t) throws IOException {
@@ -159,6 +160,7 @@ public class WebServer {
 
             hdrs.add("Content-Type", "image/png");
             hdrs.add(X_REQUEST_ID_HEADER, requestId);
+            hdrs.add(X_METHOD_COUNT_HEADER, Long.toString(results.methodCount));
 
             hdrs.add("Access-Control-Allow-Origin", "*");
             hdrs.add("Access-Control-Allow-Credentials", "true");

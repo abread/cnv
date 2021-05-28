@@ -3,6 +3,7 @@ package cnv.autoscaler.loadbalancer;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Optional;
 import java.util.logging.Logger;
 
 import com.sun.net.httpserver.Headers;
@@ -15,10 +16,12 @@ import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.HttpEntity;
+import org.apache.hc.core5.http.ProtocolException;
 
 public abstract class LBStrategy implements HttpHandler {
     private Logger logger = Logger.getLogger(LBStrategy.class.getName());
     private static final String X_REQUEST_ID_HEADER = "X-LB-Request-ID";
+    private static final String X_METHOD_COUNT_HEADER = "X-Method-Count";
 
     public void handle(final HttpExchange t) throws IOException {
         // Get the query.
@@ -26,6 +29,7 @@ public abstract class LBStrategy implements HttpHandler {
 
         logger.info("Request received. Query: " + queryString);
 
+        Optional<Long> methodCount = Optional.empty();
         Request request = this.startRequest(queryString);
         try {
             logger.info(String.format("Request %s running on instance %s", request.getId().toString(), request.getInstance().id()));
@@ -37,11 +41,16 @@ public abstract class LBStrategy implements HttpHandler {
 
             final Headers outerRespHeaders = t.getResponseHeaders();
             for (Header header : innerResp.getHeaders()) {
-                // TODO: see if any more of these needs to be filtered
-                if (!header.getName().toLowerCase().equals("content-length")) {
+                final String headerName = header.getName().toLowerCase();
+
+                if (!headerName.equals("content-length") || !headerName.equals(X_METHOD_COUNT_HEADER)) {
                     outerRespHeaders.add(header.getName(), header.getValue());
                 }
             }
+
+            try {
+                methodCount = Optional.of(innerResp.getHeader(X_METHOD_COUNT_HEADER).getValue()).map(Long::parseLong);
+            } catch (NullPointerException | ProtocolException ignored) {}
 
             final HttpEntity innerRespBody = innerResp.getEntity();
 
@@ -70,7 +79,7 @@ public abstract class LBStrategy implements HttpHandler {
 
             logger.info("> Sent response to " + t.getRemoteAddress().toString());
         } finally {
-            request.finished();
+            request.finished(methodCount);
         }
     }
 

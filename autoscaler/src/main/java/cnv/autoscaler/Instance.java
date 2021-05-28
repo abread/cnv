@@ -4,9 +4,10 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalDouble;
+import java.util.OptionalLong;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 
 import org.apache.hc.client5.http.classic.methods.HttpGet;
@@ -28,8 +29,7 @@ public class Instance {
     private Map<Request, Long> requestLoadEstimates = new HashMap<>();
     private AtomicLong currentLoad = new AtomicLong(0);
 
-    private static final AtomicReference<FastEstimator> estimator = new AtomicReference<>(new FastEstimator());
-    // TODO: launch background thread that updates the estimator
+    private static final FastEstimator estimator = new FastEstimator();
 
     private static final BetterEstimateFetcher betterEstimateFetcher = new BetterEstimateFetcher();
 
@@ -45,17 +45,30 @@ public class Instance {
             return Optional.empty();
         }
 
-        Request req = new Request(requestId, this, new RequestParams(queryString));
+        RequestParams requestParams = new RequestParams(queryString);
+        Request req = new Request(requestId, this, requestParams);
 
         String algo = req.params().algo;
         long viewportArea = req.params().viewportArea();
-        long loadEstimate = estimator.get().estimateMethodCount(algo, viewportArea);
 
-        requestLoadEstimates.put(req, 0L);
+        requestLoadEstimates.put(req, 1L);
+
+        long loadEstimate;
+
+        OptionalLong cachedResult = estimator.getFromCache(requestParams);
+        if (cachedResult.isPresent()) {
+            loadEstimate = cachedResult.getAsLong();
+        } else {
+            loadEstimate = estimator.estimateMethodCount(algo, viewportArea);
+        }
+
         this.updateRequestEstimate(req, loadEstimate);
 
-        // try to get a better estimate in the meantime (out of critical path)
-        betterEstimateFetcher.queueEstimationRequest(req);
+        if (!cachedResult.isPresent()) {
+            // we used a really not very good linear regression
+            // try to get a better estimate in the meantime (out of critical path)
+            betterEstimateFetcher.queueEstimationRequest(req);
+        }
 
         return Optional.of(req);
     }
@@ -77,6 +90,7 @@ public class Instance {
 
         methodCount.ifPresent(c -> {
             logger.info(String.format("Request %s had %d method calls", req.getId(), c));
+            estimator.putInCache(req.params(), c.longValue());
         });
 
         if (isStopping && requestLoadEstimates.isEmpty()) {

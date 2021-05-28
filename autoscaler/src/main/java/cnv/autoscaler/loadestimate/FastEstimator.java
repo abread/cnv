@@ -1,5 +1,12 @@
 package cnv.autoscaler.loadestimate;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import cnv.autoscaler.loadbalancer.RequestParams;
+
+import java.util.OptionalDouble;
+import java.util.OptionalLong;
+
 public class FastEstimator {
     private double gridA;
     private double gridB;
@@ -7,6 +14,9 @@ public class FastEstimator {
     private double progB;
     private double greedyA;
     private double greedyB;
+
+    private static final int CACHE_SIZE = 512;
+    private Cache<RequestParams, Long> estimateCache;
 
     public FastEstimator() {
         // values obtained experimentally for random workload
@@ -21,6 +31,9 @@ public class FastEstimator {
         this.progB = progB;
         this.greedyA = greedyA;
         this.greedyB = greedyB;
+        this.estimateCache = Caffeine.newBuilder()
+            .maximumSize(CACHE_SIZE)
+            .build();
     }
 
     public long estimateMethodCount(String algo, long viewportArea) {
@@ -34,5 +47,27 @@ public class FastEstimator {
             default:
                 return 1; // will just error out in the web server
         }
+    }
+
+    public OptionalLong getFromCache(RequestParams requestParams) {
+        Long value = estimateCache.getIfPresent(requestParams);
+        if (value != null) {
+            return OptionalLong.of(value);
+        }
+
+        OptionalDouble estimate = estimateCache.asMap().entrySet().stream()
+            .filter(r -> requestParams.similarTo(r.getKey()))
+            .mapToDouble(r -> Double.valueOf(r.getValue()))
+            .average();
+
+        if (estimate.isEmpty()) {
+            return OptionalLong.empty();
+        } else {
+            return OptionalLong.of(Math.round(estimate.getAsDouble()));
+        }
+    }
+
+    public void putInCache(RequestParams requestParams, long loadEstimate) {
+        estimateCache.put(requestParams, loadEstimate);
     }
 }

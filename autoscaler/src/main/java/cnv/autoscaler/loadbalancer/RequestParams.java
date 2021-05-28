@@ -1,6 +1,9 @@
 package cnv.autoscaler.loadbalancer;
 
+import java.util.Objects;
+
 public class RequestParams {
+    public final static int POSITION_THRESHOLD = 16; // TODO: tune (future work)
     public long x0 = 0, x1 = 0, y0 = 0, y1 = 0;
     public String algo, imagePath;
 
@@ -31,5 +34,19 @@ public class RequestParams {
         long viewportArea = (x1 - x0) * (y1 - y0);
         viewportArea = Math.max(viewportArea, 0);
         return viewportArea;
+    }
+
+    public boolean similarTo(RequestParams other) {
+        return this.algo.equals(other.algo)
+            && this.imagePath.equals(other.imagePath)
+            && Math.abs(this.x0 - other.x0) <= POSITION_THRESHOLD
+            && Math.abs(this.x1 - other.x1) <= POSITION_THRESHOLD
+            && Math.abs(this.y0 - other.y0) <= POSITION_THRESHOLD
+            && Math.abs(this.y1 - other.y1) <= POSITION_THRESHOLD;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(x0, x1, y0, y1, algo, imagePath);
     }
 }

@@ -43,7 +43,6 @@ import cnv.autoscaler.loadbalancer.RequestParams;
 public class AwsMetricDownloader {
     private final static Logger LOGGER = Logger.getLogger(AwsMetricDownloader.class.getName());
 
-    public final static int POSITION_THRESHOLD = 16; // TODO: tune (future work)
     static AmazonDynamoDB dynamoDB;
 
     private static final String METRICS_TABLE_NAME = System.getProperty("mss.dynamodb.tablename",
@@ -101,8 +100,9 @@ public class AwsMetricDownloader {
 
     private static void addIntervalCondition(HashMap<String, Condition> filter, String arg, long value) {
         Condition between = new Condition().withComparisonOperator(ComparisonOperator.BETWEEN.toString())
-                .withAttributeValueList(new AttributeValue().withN(Long.toString(value - POSITION_THRESHOLD)),
-                        new AttributeValue().withN(Long.toString(value + POSITION_THRESHOLD)));
+                .withAttributeValueList(
+                        new AttributeValue().withN(Long.toString(value - RequestParams.POSITION_THRESHOLD)),
+                        new AttributeValue().withN(Long.toString(value + RequestParams.POSITION_THRESHOLD)));
         filter.put(arg, between);
     }
 

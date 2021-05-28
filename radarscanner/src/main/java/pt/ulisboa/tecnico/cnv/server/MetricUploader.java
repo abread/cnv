@@ -74,7 +74,7 @@ public class MetricUploader {
         private AmazonDynamoDB dynamoDBClient;
         private String tableName;
         private ConcurrentLinkedQueue<Metrics> uploadQueue = new ConcurrentLinkedQueue<>();
-        private Semaphore queueNotEmpty = new Semaphore(1);
+        private Semaphore queueNotEmpty = new Semaphore(0);
         private int MAX_QUEUE_SIZE = 32;
 
         public MetricUploaderTask(String tableName, AmazonDynamoDB dynamoDBClient) {
@@ -83,8 +83,12 @@ public class MetricUploader {
         }
 
         public void run() {
+            Metrics metrics;
             while (true) {
-                Metrics metrics;
+                try {
+                    queueNotEmpty.acquire();
+                } catch (InterruptedException ignored) {}
+
                 while ((metrics = uploadQueue.poll()) != null) {
                     try {
                         Map<String, AttributeValue> item = prepareMetrics(metrics);
@@ -94,11 +98,6 @@ public class MetricUploader {
                         System.err.println("Could not upload metric: " + e.getMessage());
                         e.printStackTrace();
                     }
-                }
-
-                try {
-                    queueNotEmpty.acquire();
-                } catch (InterruptedException ignored) {
                 }
             }
         }
@@ -114,7 +113,11 @@ public class MetricUploader {
                 System.err.println("Discarding metrics: too many items in queue");
             } else {
                 uploadQueue.add(metrics);
-                queueNotEmpty.release();
+
+                if (queueNotEmpty.availablePermits() <= 0) {
+                    // try to not issue too many permits (>1 make the worker spin needlessly)
+                    queueNotEmpty.release();
+                }
             }
         }
 

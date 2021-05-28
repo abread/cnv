@@ -11,7 +11,7 @@ import cnv.autoscaler.loadbalancer.Request;
 public class BetterEstimateFetcher {
     private Logger logger = Logger.getLogger(BetterEstimateFetcher.class.getName());
     private ConcurrentLinkedQueue<Request> queue = new ConcurrentLinkedQueue<>();
-    private Semaphore queueNotEmpty = new Semaphore(1);
+    private Semaphore queueNotEmpty = new Semaphore(0);
 
     private Thread worker;
 
@@ -26,7 +26,11 @@ public class BetterEstimateFetcher {
      */
     public void queueEstimationRequest(Request req) {
         queue.add(req);
-        queueNotEmpty.release();
+
+        if (queueNotEmpty.availablePermits() <= 0) {
+            // try to not issue too many permits (>1 make the worker spin needlessly)
+            queueNotEmpty.release();
+        }
     }
 
     private class Worker implements Runnable {
@@ -34,6 +38,10 @@ public class BetterEstimateFetcher {
         public void run() {
             Request req;
             while (true) {
+                try {
+                    queueNotEmpty.acquire();
+                } catch (InterruptedException ignored) {}
+
                 while ((req = queue.poll()) != null) {
                     logger.info("Fetching a better estimate from DynamoDB for request " + req.getId().toString());
                     OptionalDouble methodCount = AwsMetricDownloader.getEstimatedMethodCountForRequest(req.params());
@@ -42,11 +50,6 @@ public class BetterEstimateFetcher {
                         req.getInstance().updateRequestEstimate(req, Math.round(methodCount.getAsDouble()));
                     }
                 }
-
-
-                try {
-                    queueNotEmpty.acquire();
-                } catch (InterruptedException ignored) {}
             }
         }
     }

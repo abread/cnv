@@ -92,6 +92,11 @@ public class Instance {
         }
     }
 
+    public synchronized void forceStop() {
+        requestLoadEstimates.clear();
+        this.stop();
+    }
+
     public long currentLoad() {
         return currentLoad.get();
     }

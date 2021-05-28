@@ -19,6 +19,8 @@ import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.core5.http.Header;
 
+import cnv.autoscaler.Instance;
+
 public abstract class LBStrategy implements HttpHandler {
     private Logger logger = Logger.getLogger(LBStrategy.class.getName());
     private static final String X_REQUEST_ID_HEADER = "X-LB-Request-ID";
@@ -105,6 +107,7 @@ public abstract class LBStrategy implements HttpHandler {
             return reply;
         } catch (Exception e) {
             logger.warning(String.format("Failed attempt at answering request %s: %s", requestId, e.getMessage()));
+            suspectInstance(request.getInstance());
             return null;
         } finally {
             request.finished(methodCount);
@@ -125,6 +128,8 @@ public abstract class LBStrategy implements HttpHandler {
     }
 
     public abstract Request startRequest(String queryString, UUID requestId);
+
+    protected abstract void suspectInstance(Instance instance);
 
     private static class Reply {
         public byte[] body;

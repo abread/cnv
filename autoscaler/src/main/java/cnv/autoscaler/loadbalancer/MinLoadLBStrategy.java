@@ -30,4 +30,8 @@ public class MinLoadLBStrategy extends LBStrategy {
 
         return request.get();
     }
+
+    protected void suspectInstance(Instance instance) {
+        registry.suspectInstanceBad(instance);
+    }
 }

@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
@@ -39,12 +40,12 @@ public class Instance {
         logger = Logger.getLogger(Instance.class.getName() + ":" + id);
     }
 
-    public synchronized Optional<Request> requestStart(String queryString) {
+    public synchronized Optional<Request> requestStart(String queryString, UUID requestId) {
         if (isStopping) {
             return Optional.empty();
         }
 
-        Request req = new Request(this, new RequestParams(queryString));
+        Request req = new Request(requestId, this, new RequestParams(queryString));
 
         String algo = req.params().algo;
         long viewportArea = req.params().viewportArea();

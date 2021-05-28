@@ -6,11 +6,12 @@ import java.util.UUID;
 import cnv.autoscaler.Instance;
 
 public class Request {
-    private UUID id = UUID.randomUUID();
+    private UUID id;
     private Instance instance;
     private RequestParams params;
 
-    public Request(Instance instance, RequestParams params) {
+    public Request(UUID id, Instance instance, RequestParams params) {
+        this.id = id;
         this.instance = instance;
         this.params = params;
     }

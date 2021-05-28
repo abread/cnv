@@ -2,6 +2,7 @@ package cnv.autoscaler.loadbalancer;
 
 import java.util.Comparator;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.logging.Logger;
 
 import cnv.autoscaler.Instance;
@@ -15,7 +16,7 @@ public class MinLoadLBStrategy extends LBStrategy {
         this.registry = registry;
     }
 
-    public Request startRequest(String queryString) {
+    public Request startRequest(String queryString, UUID requestId) {
         Instance instance;
         Optional<Request> request = Optional.empty();
 
@@ -24,7 +25,7 @@ public class MinLoadLBStrategy extends LBStrategy {
                 .min(Comparator.comparingLong(inst -> inst.currentLoad()))
                 .get();
 
-            request = instance.requestStart(queryString);
+            request = instance.requestStart(queryString, requestId);
         } while (!request.isPresent());
 
         return request.get();

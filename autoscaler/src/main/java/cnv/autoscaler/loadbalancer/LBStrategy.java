@@ -1,9 +1,11 @@
 package cnv.autoscaler.loadbalancer;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.logging.Logger;
 
 import com.sun.net.httpserver.Headers;
@@ -15,22 +17,54 @@ import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.core5.http.Header;
-import org.apache.hc.core5.http.HttpEntity;
-import org.apache.hc.core5.http.ProtocolException;
 
 public abstract class LBStrategy implements HttpHandler {
     private Logger logger = Logger.getLogger(LBStrategy.class.getName());
     private static final String X_REQUEST_ID_HEADER = "X-LB-Request-ID";
     private static final String X_METHOD_COUNT_HEADER = "X-Method-Count";
+    private static final int MAX_ATTEMPTS = 5;
 
     public void handle(final HttpExchange t) throws IOException {
         // Get the query.
+        final UUID requestId = UUID.randomUUID();
         final String queryString = t.getRequestURI().getQuery();
+        logger.info(String.format("Request %s received from %s. Query: %s", requestId, t.getRemoteAddress(), queryString));
 
-        logger.info("Request received. Query: " + queryString);
+        Reply innerResponse = null;
+        for (int i = 0; i < MAX_ATTEMPTS; i++) {
+            innerResponse = tryPerformingRequest(queryString, requestId);
 
+            if (innerResponse != null) {
+                break;
+            }
+        }
+        if (innerResponse == null) {
+            logger.severe(String.format("Request %s could not be answered after %d attempts", requestId, MAX_ATTEMPTS));
+
+            // Send HTTP error 502 Bad Gateway
+            t.sendResponseHeaders(502, 0);
+            t.getResponseBody().close();
+            return;
+        }
+
+        final Headers responseHeaders = t.getResponseHeaders();
+        for (Map.Entry<String, String> header : innerResponse.headers.entrySet()) {
+            responseHeaders.add(header.getKey(), header.getValue());
+        }
+
+        t.sendResponseHeaders(200, innerResponse.body.length);
+
+        final OutputStream os = t.getResponseBody();
+        os.write(innerResponse.body);
+        os.close();
+
+        logger.info("Request " + requestId + " answered");
+    }
+
+    private Reply tryPerformingRequest(String queryString, UUID requestId) {
         Optional<Long> methodCount = Optional.empty();
-        Request request = this.startRequest(queryString);
+
+        Request request = this.startRequest(queryString, requestId);
         try {
             logger.info(String.format("Request %s running on instance %s", request.getId().toString(), request.getInstance().id()));
 
@@ -39,49 +73,51 @@ public abstract class LBStrategy implements HttpHandler {
             innerRequest.addHeader(X_REQUEST_ID_HEADER, request.getId().toString());
             final CloseableHttpResponse innerResp = client.execute(innerRequest);
 
-            final Headers outerRespHeaders = t.getResponseHeaders();
+            if (innerResp.getCode() != 200) {
+                throw new Exception("HTTP response not OK");
+            }
+
+            Reply reply = new Reply();
             for (Header header : innerResp.getHeaders()) {
                 final String headerName = header.getName().toLowerCase();
 
-                if (!headerName.equals("content-length") || !headerName.equals(X_METHOD_COUNT_HEADER)) {
-                    outerRespHeaders.add(header.getName(), header.getValue());
+                if (headerName.equals(X_METHOD_COUNT_HEADER)) {
+                    try {
+                        reply.methodCount = Optional.of(header.getValue()).map(Long::parseLong);
+                        methodCount = reply.methodCount;
+                    } catch (NullPointerException | NumberFormatException ignored) {}
+                } else if (!headerName.equals("content-length")) {
+                    reply.headers.put(header.getName(), header.getValue());
                 }
             }
 
-            try {
-                methodCount = Optional.of(innerResp.getHeader(X_METHOD_COUNT_HEADER).getValue()).map(Long::parseLong);
-            } catch (NullPointerException | ProtocolException ignored) {}
+            int bodyLength = Long.valueOf(innerResp.getEntity().getContentLength()).intValue();
+            reply.body = innerResp.getEntity().getContent().readAllBytes();
 
-            final HttpEntity innerRespBody = innerResp.getEntity();
-
-            long contentLength = innerRespBody.getContentLength();
-            t.sendResponseHeaders(innerResp.getCode(), contentLength);
-
-            final OutputStream os = t.getResponseBody();
-            final InputStream is = innerRespBody.getContent();
-            final int BUFFER_SIZE = 2048;
-            final byte[] buffer = new byte[BUFFER_SIZE];
-
-            long bytesWritten = 0;
-            while (bytesWritten < contentLength) {
-                int nToRead = Math.max(Math.min(is.available(), BUFFER_SIZE), BUFFER_SIZE / 2);
-                int nRead = is.read(buffer, 0, nToRead);
-                if (nRead > 0) {
-                    os.write(buffer, 0, nRead);
-                }
-                bytesWritten += nRead;
+            if (bodyLength != reply.body.length) {
+                throw new Exception("body length does not match Content-Length");
             }
 
-            os.close();
-            is.close();
             innerResp.close();
             client.close();
 
-            logger.info("> Sent response to " + t.getRemoteAddress().toString());
+            return reply;
+        } catch (Exception e) {
+            logger.warning(String.format("Failed attempt at answering request %s: %s", requestId, e.getMessage()));
+            return null;
         } finally {
             request.finished(methodCount);
         }
+
     }
 
-    public abstract Request startRequest(String queryString);
+    public abstract Request startRequest(String queryString, UUID requestId);
+
+    private static class Reply {
+        public byte[] body;
+        public Map<String, String> headers = new HashMap<>();
+        public Optional<Long> methodCount = Optional.empty();
+
+        public Reply() {}
+    }
 }

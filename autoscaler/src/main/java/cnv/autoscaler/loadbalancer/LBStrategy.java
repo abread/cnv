@@ -1,6 +1,7 @@
 package cnv.autoscaler.loadbalancer;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.Map;
@@ -92,7 +93,7 @@ public abstract class LBStrategy implements HttpHandler {
             }
 
             int bodyLength = Long.valueOf(innerResp.getEntity().getContentLength()).intValue();
-            reply.body = innerResp.getEntity().getContent().readAllBytes();
+            reply.body = readAllBytes(innerResp.getEntity().getContent(), bodyLength);
 
             if (bodyLength != reply.body.length) {
                 throw new Exception("body length does not match Content-Length");
@@ -109,6 +110,18 @@ public abstract class LBStrategy implements HttpHandler {
             request.finished(methodCount);
         }
 
+    }
+
+    private static byte[] readAllBytes(InputStream is, int length) throws IOException {
+        byte[] buffer = new byte[length];
+
+        int bufferIdx = 0;
+        while (bufferIdx < length) {
+            bufferIdx += is.read(buffer, bufferIdx, length - bufferIdx);
+        }
+
+        is.close();
+        return buffer;
     }
 
     public abstract Request startRequest(String queryString, UUID requestId);

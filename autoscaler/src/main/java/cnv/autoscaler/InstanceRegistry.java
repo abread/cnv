@@ -18,8 +18,10 @@ public class InstanceRegistry {
 
     public void stopInstance(String id) {
         Instance instance = readyInstances.remove(id);
-        logger.info(String.format("Instance %s stopping", id));
-        instance.stop();
+        if (instance != null) {
+            logger.info(String.format("Instance %s stopping", id));
+            instance.stop();
+        }
     }
 
     public void add(Instance instance) {
@@ -66,9 +68,13 @@ public class InstanceRegistry {
                     } catch (InterruptedException ignored) {}
 
                     while ((instance = suspiciousInstances.poll()) != null) {
-                        if (!instance.isHealthy()) {
-                            InstanceRegistry.this.stopInstance(instance.id());
-                            instance.forceStop(); // this instance is no good
+                        try {
+                            if (!instance.isHealthy()) {
+                                InstanceRegistry.this.stopInstance(instance.id());
+                                instance.forceStop(); // this instance is no good
+                            }
+                        } catch (Exception e) {
+                            e.printStackTrace();
                         }
                     }
                 }

@@ -43,11 +43,15 @@ public class BetterEstimateFetcher {
                 } catch (InterruptedException ignored) {}
 
                 while ((req = queue.poll()) != null) {
-                    logger.info("Fetching a better estimate from DynamoDB for request " + req.getId().toString());
-                    OptionalDouble methodCount = AwsMetricDownloader.getEstimatedMethodCountForRequest(req.params());
+                    try {
+                        logger.info("Fetching a better estimate from DynamoDB for request " + req.getId().toString());
+                        OptionalDouble methodCount = AwsMetricDownloader.getEstimatedMethodCountForRequest(req.params());
 
-                    if (methodCount.isPresent()) {
-                        req.getInstance().updateRequestEstimate(req, Math.round(methodCount.getAsDouble()));
+                        if (methodCount.isPresent()) {
+                            req.getInstance().updateRequestEstimate(req, Math.round(methodCount.getAsDouble()));
+                        }
+                    } catch(Exception e) {
+                        e.printStackTrace();
                     }
                 }
             }

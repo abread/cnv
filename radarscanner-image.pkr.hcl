@@ -50,7 +50,7 @@ build {
             "echo '#!/bin/sh' | sudo tee -a /etc/rc.local",
             "echo '(cd /opt/radarscanner && runuser -u nobody -- ./bin/radarscanner -address \"0.0.0.0\" -port 8000 &)' | sudo tee -a /etc/rc.local",
             "sudo chmod +x /etc/rc.local",
-            "sudo systemctl enable --now rc-local.service",
+            "sudo systemctl enable rc-local.service",
         ]
     }
 }

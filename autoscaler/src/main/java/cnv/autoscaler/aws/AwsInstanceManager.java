@@ -33,11 +33,14 @@ import com.amazonaws.services.identitymanagement.model.CreateRoleRequest;
 import cnv.autoscaler.Main;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.Buffer;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -82,12 +85,38 @@ public class AwsInstanceManager {
 
     private static String loadResource(String name) {
         try {
-            URI uri = Main.class.getClassLoader().getResource(name).toURI();
-            byte[] bytes = Files.readAllBytes(Paths.get(uri));
-            return new String(bytes);
-        } catch (IOException | URISyntaxException e) {
+            InputStream is = Main.class.getClassLoader().getResourceAsStream(name);
+            return new String(readAllBytes(is));
+        } catch (IOException e) {
             throw new RuntimeException(String.format("Failed to load resource \"%s\"", name), e);
         }
+    }
+
+    private static byte[] readAllBytes(InputStream is) throws IOException {
+        final int BUF_SIZE = 4096;
+        byte[] buffer = new byte[BUF_SIZE];
+
+        int offset = 0;
+        int nRead;
+        while((nRead = is.read(buffer, offset, buffer.length - offset)) != -1) {
+            offset += nRead;
+
+            if (buffer.length == offset) {
+                byte[] newBuffer = new byte[buffer.length + BUF_SIZE];
+                System.arraycopy(buffer, 0, newBuffer, 0, buffer.length);
+                buffer = newBuffer;
+            }
+        }
+
+        is.close();
+
+        if (buffer.length != offset) {
+            byte[] newBuffer = new byte[offset];
+            System.arraycopy(buffer, 0, newBuffer, 0, offset);
+            buffer = newBuffer;
+        }
+
+        return buffer;
     }
 
     public static List<Instance> launchInstances(int n) {

@@ -3,13 +3,11 @@ package cnv.autoscaler.loadbalancer;
 import java.util.Comparator;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.logging.Logger;
 
 import cnv.autoscaler.Instance;
 import cnv.autoscaler.InstanceRegistry;
 
 public class MinLoadLBStrategy extends LBStrategy {
-    private Logger logger = Logger.getLogger(RoundRobinLBStrategy.class.getName());
     private InstanceRegistry registry;
 
     public MinLoadLBStrategy(InstanceRegistry registry) {

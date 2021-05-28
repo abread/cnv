@@ -1,10 +1,6 @@
 package cnv.autoscaler.aws;
 
-import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.InstanceProfileCredentialsProvider;
-import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder;
 import com.amazonaws.services.cloudwatch.model.Dimension;
@@ -45,11 +41,8 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
-import java.util.logging.Logger;
 
 public class AwsInstanceManager {
-    private Logger logger = Logger.getLogger(AwsInstanceManager.class.getName());
-
     private static AmazonIdentityManagement iam;
     private static AmazonEC2 ec2;
     private static AmazonCloudWatch cloudWatch;

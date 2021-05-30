@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -20,12 +21,19 @@ import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.core5.http.Header;
 
 import cnv.autoscaler.Instance;
+import cnv.autoscaler.InstanceRegistry;
 
 public abstract class LBStrategy implements HttpHandler {
     private Logger logger = Logger.getLogger(LBStrategy.class.getName());
+    protected InstanceRegistry registry;
+
     private static final String X_REQUEST_ID_HEADER = "X-LB-Request-ID";
     private static final String X_METHOD_COUNT_HEADER = "X-Method-Count";
     private static final int MAX_ATTEMPTS = 5;
+
+    protected LBStrategy(InstanceRegistry registry) {
+        this.registry = registry;
+    }
 
     public void handle(final HttpExchange t) throws IOException {
         // Get the query.
@@ -34,8 +42,9 @@ public abstract class LBStrategy implements HttpHandler {
         logger.info(String.format("Request %s received from %s. Query: %s", requestId, t.getRemoteAddress(), queryString));
 
         Reply innerResponse = null;
+        HashSet<Instance> suspectedBadInstances = new HashSet<>();
         for (int i = 0; i < MAX_ATTEMPTS; i++) {
-            innerResponse = tryPerformingRequest(queryString, requestId);
+            innerResponse = tryPerformingRequest(queryString, requestId, suspectedBadInstances);
 
             if (innerResponse != null) {
                 break;
@@ -64,10 +73,16 @@ public abstract class LBStrategy implements HttpHandler {
         logger.info("Request " + requestId + " answered");
     }
 
-    private Reply tryPerformingRequest(String queryString, UUID requestId) {
+    private Reply tryPerformingRequest(String queryString, UUID requestId, HashSet<Instance> suspectedBadInstances) {
         Optional<Long> methodCount = Optional.empty();
 
-        Request request = this.startRequest(queryString, requestId);
+        if (registry.size() == suspectedBadInstances.size() && suspectedBadInstances.containsAll(registry.readyInstances())) {
+            // we suspect everyone, so just start fresh to be able to make progress
+            // note: this does not affect health checking
+            suspectedBadInstances.clear();
+        }
+
+        Request request = this.startRequest(queryString, requestId, suspectedBadInstances);
         try {
             logger.info(String.format("Request %s running on instance %s", request.getId().toString(), request.getInstance().id()));
 
@@ -109,7 +124,8 @@ public abstract class LBStrategy implements HttpHandler {
             return reply;
         } catch (Exception e) {
             logger.warning(String.format("Failed attempt at answering request %s: %s", requestId, e.getMessage()));
-            suspectInstance(request.getInstance());
+            suspectedBadInstances.add(request.getInstance());
+            registry.suspectInstanceBad(request.getInstance());
             return null;
         } finally {
             request.finished(methodCount);
@@ -129,9 +145,16 @@ public abstract class LBStrategy implements HttpHandler {
         return buffer;
     }
 
-    public abstract Request startRequest(String queryString, UUID requestId);
-
-    protected abstract void suspectInstance(Instance instance);
+    /**
+     * Mark the request as started in some instance of the registry.
+     * Should ignore instances present in the suspectedBadInstances set
+     *
+     * @param queryString request query string
+     * @param requestId requestId
+     * @param suspectedBadInstances instances that are suspected to be unhealthy
+     * @return request representation
+     */
+    public abstract Request startRequest(String queryString, UUID requestId, HashSet<Instance> suspectedBadInstances);
 
     private static class Reply {
         public int statusCode;

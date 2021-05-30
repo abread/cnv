@@ -16,6 +16,10 @@ public class InstanceRegistry {
         return this.readyInstances.values();
     }
 
+    public int size() {
+        return this.readyInstances.size();
+    }
+
     public void stopInstance(String id) {
         Instance instance = readyInstances.remove(id);
         if (instance != null) {

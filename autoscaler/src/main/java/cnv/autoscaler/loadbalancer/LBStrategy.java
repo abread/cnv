@@ -55,7 +55,7 @@ public abstract class LBStrategy implements HttpHandler {
             responseHeaders.add(header.getKey(), header.getValue());
         }
 
-        t.sendResponseHeaders(200, innerResponse.body.length);
+        t.sendResponseHeaders(innerResponse.statusCode, innerResponse.body.length);
 
         final OutputStream os = t.getResponseBody();
         os.write(innerResponse.body);
@@ -76,11 +76,13 @@ public abstract class LBStrategy implements HttpHandler {
             innerRequest.addHeader(X_REQUEST_ID_HEADER, request.getId().toString());
             final CloseableHttpResponse innerResp = client.execute(innerRequest);
 
-            if (innerResp.getCode() != 200) {
-                throw new Exception("HTTP response not OK");
+            if (innerResp.getCode() >= 500) {
+                throw new Exception("Error in server that handled the request (statusCode >= 500)");
             }
 
             Reply reply = new Reply();
+            reply.statusCode = innerResp.getCode();
+
             for (Header header : innerResp.getHeaders()) {
                 final String headerName = header.getName().toLowerCase();
 
@@ -132,6 +134,7 @@ public abstract class LBStrategy implements HttpHandler {
     protected abstract void suspectInstance(Instance instance);
 
     private static class Reply {
+        public int statusCode;
         public byte[] body;
         public Map<String, String> headers = new HashMap<>();
         public Optional<Long> methodCount = Optional.empty();

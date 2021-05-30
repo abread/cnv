@@ -28,14 +28,19 @@ import pt.ulisboa.tecnico.cnv.solver.SolverArgumentParser;
 public class MetricUploader {
     private AmazonDynamoDB dynamoDBClient;
     private String tableName = System.getProperty("mss.dynamodb.tablename", "radarscanner-metrics");
-    private MetricUploaderTask uploaderTask;
+
+    private ConcurrentLinkedQueue<Metrics> uploadQueue = new ConcurrentLinkedQueue<>();
+    private Semaphore queueNotEmpty = new Semaphore(0);
+    private int MAX_QUEUE_SIZE = 32;
+
+    private Thread workerThread;
 
     public MetricUploader() throws InterruptedException, TableNeverTransitionedToStateException {
         this.dynamoDBClient = createDynamoDBClient();
         ensureTableActive(this.dynamoDBClient, this.tableName);
 
-        this.uploaderTask = new MetricUploaderTask(tableName, dynamoDBClient);
-        new Thread(this.uploaderTask).start();
+        this.workerThread = new Thread(new Worker());
+        this.workerThread.start();
     }
 
     private static AmazonDynamoDB createDynamoDBClient() {
@@ -66,28 +71,33 @@ public class MetricUploader {
         TableUtils.waitUntilActive(client, tableName);
     }
 
+    /**
+     * Never blocks.
+     *
+     * @param metrics
+     */
     public void upload(Metrics metrics) {
-        this.uploaderTask.enqueue(metrics);
+        if (uploadQueue.size() > MAX_QUEUE_SIZE) {
+            // try to keep queue with a reasonable size
+            System.err.println("Discarding metrics: too many items in queue");
+        } else {
+            uploadQueue.add(metrics);
+
+            if (queueNotEmpty.availablePermits() <= 0) {
+                // try to not issue too many permits (>1 make the worker spin needlessly)
+                queueNotEmpty.release();
+            }
+        }
     }
 
-    private static class MetricUploaderTask implements Runnable {
-        private AmazonDynamoDB dynamoDBClient;
-        private String tableName;
-        private ConcurrentLinkedQueue<Metrics> uploadQueue = new ConcurrentLinkedQueue<>();
-        private Semaphore queueNotEmpty = new Semaphore(0);
-        private int MAX_QUEUE_SIZE = 32;
-
-        public MetricUploaderTask(String tableName, AmazonDynamoDB dynamoDBClient) {
-            this.tableName = tableName;
-            this.dynamoDBClient = dynamoDBClient;
-        }
-
+    private class Worker implements Runnable {
         public void run() {
             Metrics metrics;
             while (true) {
                 try {
                     queueNotEmpty.acquire();
-                } catch (InterruptedException ignored) {}
+                } catch (InterruptedException ignored) {
+                }
 
                 while ((metrics = uploadQueue.poll()) != null) {
                     try {
@@ -102,26 +112,7 @@ public class MetricUploader {
             }
         }
 
-        /**
-         * Never blocks.
-         *
-         * @param metrics
-         */
-        public void enqueue(Metrics metrics) {
-            if (uploadQueue.size() > MAX_QUEUE_SIZE) {
-                // try to keep queue with a reasonable size
-                System.err.println("Discarding metrics: too many items in queue");
-            } else {
-                uploadQueue.add(metrics);
-
-                if (queueNotEmpty.availablePermits() <= 0) {
-                    // try to not issue too many permits (>1 make the worker spin needlessly)
-                    queueNotEmpty.release();
-                }
-            }
-        }
-
-        private static Map<String, AttributeValue> prepareMetrics(Metrics metrics) {
+        private Map<String, AttributeValue> prepareMetrics(Metrics metrics) {
             Map<String, AttributeValue> item = new HashMap<String, AttributeValue>();
             SolverArgumentParser requestArgs = new SolverArgumentParser(metrics.requestParams);
 

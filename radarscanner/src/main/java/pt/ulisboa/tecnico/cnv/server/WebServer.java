@@ -9,7 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-
+import java.util.List;
 import java.util.concurrent.Executors;
 
 import com.sun.net.httpserver.Headers;
@@ -86,7 +86,11 @@ public class WebServer {
             // Get the query.
             final String query = t.getRequestURI().getQuery();
 
-            final String requestId = t.getRequestHeaders().get(X_REQUEST_ID_HEADER).get(0);
+            String requestId = "null";
+            List<String> requestIdValues = t.getRequestHeaders().get(X_REQUEST_ID_HEADER);
+            if (requestIdValues != null) {
+                requestId = t.getRequestHeaders().get(X_REQUEST_ID_HEADER).get(0);
+            }
 
             System.out.println("> Query:\t" + query);
 

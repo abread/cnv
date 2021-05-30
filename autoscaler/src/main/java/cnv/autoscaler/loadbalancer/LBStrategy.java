@@ -74,9 +74,15 @@ public abstract class LBStrategy implements HttpHandler {
     }
 
     private Reply tryPerformingRequest(String queryString, UUID requestId, HashSet<Instance> suspectedBadInstances) {
+        final int WAIT_TIME = 10 * 1000;// ms
         Optional<Long> methodCount = Optional.empty();
 
         if (registry.size() == suspectedBadInstances.size() && suspectedBadInstances.containsAll(registry.readyInstances())) {
+            // try to give the system some time to have healthy instances again
+            try {
+                Thread.sleep(WAIT_TIME);
+            } catch (InterruptedException ignored) {}
+
             // we suspect everyone, so just start fresh to be able to make progress
             // note: this does not affect health checking
             suspectedBadInstances.clear();

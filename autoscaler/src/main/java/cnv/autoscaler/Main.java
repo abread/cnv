@@ -21,6 +21,9 @@ public class Main {
         LoadBalancer lb = new LoadBalancer(registry, address, port);
         AutoScaler as = new AutoScaler(registry);
 
+        // Run autoscaler when an instance dies
+        registry.setUnhealthyInstanceTerminatedCallback(() -> as.runOnce());
+
         lb.start();
         as.start();
         System.out.println(lb.getAddress().toString());

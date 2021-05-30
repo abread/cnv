@@ -49,6 +49,10 @@ public class AutoScaler {
         autoScaleTimer = null;
     }
 
+    public void runOnce() {
+        autoScaleTask.run();
+    }
+
     private Pair<Map<String, Double>, Long> instanceCpuUsageAndPendingInstances() {
         Collection<Instance> readyInstances;
         long pendingInstances;

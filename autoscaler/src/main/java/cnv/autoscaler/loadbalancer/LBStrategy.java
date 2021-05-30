@@ -15,10 +15,13 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
 import org.apache.hc.client5.http.classic.methods.HttpGet;
+import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.core5.http.Header;
+import org.apache.hc.core5.util.TimeValue;
+import org.apache.hc.core5.util.Timeout;
 
 import cnv.autoscaler.Instance;
 import cnv.autoscaler.InstanceRegistry;
@@ -93,8 +96,13 @@ public abstract class LBStrategy implements HttpHandler {
             logger.info(String.format("Request %s running on instance %s", request.getId().toString(), request.getInstance().id()));
 
             final CloseableHttpClient client = HttpClients.createDefault();
+            final RequestConfig innerRequestConfig = RequestConfig.copy(RequestConfig.DEFAULT)
+                .setConnectionKeepAlive(TimeValue.NEG_ONE_SECOND)
+                .setConnectionRequestTimeout(Timeout.DISABLED)
+                .build();
             final HttpGet innerRequest = new HttpGet(request.getInstance().getBaseUri() + "/scan?" + queryString);
             innerRequest.addHeader(X_REQUEST_ID_HEADER, request.getId().toString());
+            innerRequest.setConfig(innerRequestConfig);
             final CloseableHttpResponse innerResp = client.execute(innerRequest);
 
             if (innerResp.getCode() >= 500) {

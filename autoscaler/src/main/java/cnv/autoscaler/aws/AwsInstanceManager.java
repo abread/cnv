@@ -259,7 +259,7 @@ public class AwsInstanceManager {
             iam.attachRolePolicy(
                     new AttachRolePolicyRequest().withRoleName(INSTANCE_IAM_ROLE_NAME).withPolicyArn(policyArn));
 
-            // I hate the AWS API
+            // i hate the aws api
             while (iam.listInstanceProfiles().getInstanceProfiles().stream()
                     .noneMatch(instProfile -> instProfile.getInstanceProfileName().equals(INSTANCE_IAM_PROFILE_NAME))) {
                 curr_tries++;

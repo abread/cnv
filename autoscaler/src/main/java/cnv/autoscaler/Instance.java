@@ -39,6 +39,13 @@ public class Instance {
         logger = Logger.getLogger(Instance.class.getName() + ":" + id);
     }
 
+    /**
+     * Registers the start of a new request on this instance. Used for keeping track of running requests and their
+     * load estimates. If the instance is stopping, the request is ignored and nothing is done.
+     * @param queryString the query string passed in the http request URL
+     * @param requestId a UUID that uniquely identifies the request
+     * @return the corresponding request object. Empty if the instance is stopping
+     */
     public synchronized Optional<Request> requestStart(String queryString, UUID requestId) {
         if (isStopping) {
             return Optional.empty();
@@ -72,6 +79,12 @@ public class Instance {
         return Optional.of(req);
     }
 
+    /**
+     * Updates a request's load estimate. Used for updating asyncrhonously the load estimate for a request after
+     * it has been launched.
+     * @param req the corresponding request object to update
+     * @param newEstimate the new load estimate for that request
+     */
     public synchronized void updateRequestEstimate(Request req, long newEstimate) {
         newEstimate = Math.max(newEstimate, 1L);
 
@@ -83,6 +96,11 @@ public class Instance {
         }
     }
 
+    /**
+     * Ends a request, removing the load estimate from the current load for the instance.
+     * @param req the request to remove
+     * @param methodCount the real method count provided by the computing instance
+     */
     public synchronized void requestEnd(Request req, Optional<Long> methodCount) {
         long estimate = requestLoadEstimates.remove(req);
         currentLoad.addAndGet(-estimate);
@@ -97,6 +115,9 @@ public class Instance {
         }
     }
 
+    /**
+     * Stops the instance.
+     */
     public synchronized void stop() {
         isStopping = true;
 
@@ -105,19 +126,31 @@ public class Instance {
         }
     }
 
+    /**
+     * Forcefully stops the instance, clearing running requests.
+     */
     public synchronized void forceStop() {
         requestLoadEstimates.clear();
         this.stop();
     }
 
+    /**
+     * @return the current load estimate on the instance
+     */
     public long currentLoad() {
         return currentLoad.get();
     }
 
+    /**
+     * @return number of current running requests
+     */
     public synchronized int currentRequestCount() {
         return requestLoadEstimates.size();
     }
 
+    /**
+     * @return the average CPU load for this instance
+     */
     public double getAvgCpuLoad() {
         if (currentRequestCount() > 0) {
             return 1;
@@ -134,6 +167,10 @@ public class Instance {
         return this.id;
     }
 
+    /**
+     * Checks the current health status of the instance, by reaching to a endpoint for that purpose.
+     * @return true if instance replied, false otherwise
+     */
     public boolean isHealthy() {
         try (CloseableHttpClient client = HttpClients.createDefault()) {
             final String uri = getBaseUri() + "/test";
@@ -146,6 +183,9 @@ public class Instance {
         }
     }
 
+    /**
+     * Specialization of the instance class for AWS. Uses CloudWwatch metrics and the EC2 API for terminating instances.
+     */
     public static class AwsInstance extends Instance {
         public AwsInstance(com.amazonaws.services.ec2.model.Instance awsMetadata) {
             super(awsMetadata.getInstanceId(), "http://" + AwsInstanceManager.getPublicDnsName(awsMetadata.getInstanceId()) + ":8000");
@@ -154,7 +194,7 @@ public class Instance {
         public double getAvgCpuLoad() {
             return AwsInstanceManager.getAvgCpuUsage(this.id())
                 // fallback to local approximation when CloudWatch is unavailable
-                .orElseGet(() -> super.getAvgCpuLoad());
+                .orElseGet(super::getAvgCpuLoad);
         }
 
         public synchronized void stop() {

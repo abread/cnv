@@ -74,7 +74,7 @@ public class AutoScaler {
         Collection<Instance> readyInstances;
         long pendingInstances;
 
-        // keep pendingInstances consistent with instaceRegistry.size()
+        // keep pendingInstances consistent with instanceRegistry.size()
         synchronized (this) {
             readyInstances = instanceRegistry.readyInstances();
             pendingInstances = this.pendingInstances.get();
@@ -102,7 +102,7 @@ public class AutoScaler {
         }
 
         public static<T, U> Pair<T, U> of(T first, U second) {
-            return new Pair<T, U>(first, second);
+            return new Pair<>(first, second);
         }
     }
 
@@ -173,7 +173,7 @@ public class AutoScaler {
                 // stop the instances with less cpu/predicted load
                 cpuUsage.entrySet().stream()
                         .sorted(Comparator.comparingDouble(CPU_USAGE_EXTRACTOR)
-                                .thenComparing(Comparator.comparingLong(LOAD_EXTRACTOR)))
+                                .thenComparingLong(LOAD_EXTRACTOR))
                         .limit(n).forEach(entry -> instanceRegistry.stopInstance(entry.getKey()));
             }
         }
@@ -206,7 +206,7 @@ public class AutoScaler {
                         logger.info(String.format("Instance %s now ready to answer requests", instance.id()));
                         startedInstances.remove(instance);
 
-                        // keep pendingInstances consistent with instaceRegistry.size()
+                        // keep pendingInstances consistent with instanceRegistry.size()
                         synchronized (AutoScaler.this) {
                             instanceRegistry.add(instance);
                             pendingInstances.decrementAndGet();

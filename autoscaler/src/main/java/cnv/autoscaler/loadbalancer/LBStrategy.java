@@ -99,6 +99,7 @@ public abstract class LBStrategy implements HttpHandler {
             final RequestConfig innerRequestConfig = RequestConfig.copy(RequestConfig.DEFAULT)
                 .setConnectionKeepAlive(TimeValue.NEG_ONE_SECOND)
                 .setConnectionRequestTimeout(Timeout.DISABLED)
+                .setResponseTimeout(Timeout.DISABLED)
                 .build();
             final HttpGet innerRequest = new HttpGet(request.getInstance().getBaseUri() + "/scan?" + queryString);
             innerRequest.addHeader(X_REQUEST_ID_HEADER, request.getId().toString());
@@ -138,6 +139,7 @@ public abstract class LBStrategy implements HttpHandler {
             return reply;
         } catch (Exception e) {
             logger.warning(String.format("Failed attempt at answering request %s: %s", requestId, e.getMessage()));
+            e.printStackTrace();
             suspectedBadInstances.add(request.getInstance());
             registry.suspectInstanceBad(request.getInstance());
             return null;

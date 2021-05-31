@@ -50,7 +50,7 @@ public class Instance {
         String algo = req.params().algo;
         long viewportArea = req.params().viewportArea();
 
-        requestLoadEstimates.put(req, 1L);
+        requestLoadEstimates.put(req, 0L);
 
         long loadEstimate;
 

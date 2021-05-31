@@ -5,6 +5,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import pt.ulisboa.tecnico.cnv.solver.SolverFactory;
 import pt.ulisboa.tecnico.cnv.solver.SolverArgumentParser;
 
+/**
+ * Stores each Metric that is a result of each request, associated to its thread ID
+ * Only keeps the metrics while the requests are not ended
+ */
 public class MetricTracker {
     private static Map<Long, Metrics> localMetricStorage = new ConcurrentHashMap<>();
 
@@ -33,6 +37,9 @@ public class MetricTracker {
         metrics.methodCount += 1;
     }
 
+    /**
+     * Stores the parameters of the requests and, at the end, the number of methods that the request invoked.
+     */
     public static class Metrics {
         String[] requestParams;
 

@@ -25,6 +25,12 @@ import com.amazonaws.services.dynamodbv2.util.TableUtils.TableNeverTransitionedT
 import pt.ulisboa.tecnico.cnv.server.MetricTracker.Metrics;
 import pt.ulisboa.tecnico.cnv.solver.SolverArgumentParser;
 
+/**
+ * Responsible for uploading the metrics to the Metric Storage System (MSS) that is AmazonDynamoDB
+ * At initialization it verifies and/or creates the table where the metrics are stored.
+ * Each metric has an ID associated, that is randomly generated on insertion.
+ * This uploader operates on its own thread, uploading a metric whenever a new metric is added, so it doesn't block.
+ */
 public class MetricUploader {
     private AmazonDynamoDB dynamoDBClient;
     private String tableName = System.getProperty("mss.dynamodb.tablename", "radarscanner-metrics");
@@ -72,6 +78,7 @@ public class MetricUploader {
     }
 
     /**
+     * Uploads a metric to the MSS
      * Never blocks.
      *
      * @param metrics
@@ -90,6 +97,9 @@ public class MetricUploader {
         }
     }
 
+    /**
+     * Worker thread that keeps waiting for metrics to be added so it can upload to the MSS, without blocking
+     */
     private class Worker implements Runnable {
         public void run() {
             Metrics metrics;
@@ -112,6 +122,11 @@ public class MetricUploader {
             }
         }
 
+        /**
+         * Prepares the metrics according to the AmazonDynamoDB requirements
+         * @param metrics
+         * @return Map with values to insert in the MSS
+         */
         private Map<String, AttributeValue> prepareMetrics(Metrics metrics) {
             Map<String, AttributeValue> item = new HashMap<String, AttributeValue>();
             SolverArgumentParser requestArgs = new SolverArgumentParser(metrics.requestParams);

@@ -156,12 +156,13 @@ public class WebServer {
             }
 
             final Metrics results = MetricTracker.requestEnd();
-            //results.print();
+
             metricUploader.upload(results);
 
             // Send response to browser.
             final Headers hdrs = t.getResponseHeaders();
 
+            // Set in the headers the method count so the load balancer can store it
             hdrs.add("Content-Type", "image/png");
             hdrs.add(X_REQUEST_ID_HEADER, requestId);
             hdrs.add(X_METHOD_COUNT_HEADER, Long.toString(results.methodCount));

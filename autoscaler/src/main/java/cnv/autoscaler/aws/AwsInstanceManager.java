@@ -92,7 +92,7 @@ public class AwsInstanceManager {
 
         int offset = 0;
         int nRead;
-        while((nRead = is.read(buffer, offset, buffer.length - offset)) != -1) {
+        while ((nRead = is.read(buffer, offset, buffer.length - offset)) != -1) {
             offset += nRead;
 
             if (buffer.length == offset) {
@@ -161,7 +161,8 @@ public class AwsInstanceManager {
 
         GetMetricStatisticsResult getMetricStatisticsResult = cloudWatch.getMetricStatistics(request);
 
-        return getMetricStatisticsResult.getDatapoints().stream().map(dp -> dp.getAverage() / 100 /* use 0-1 percentages */).findFirst();
+        return getMetricStatisticsResult.getDatapoints().stream()
+                .map(dp -> dp.getAverage() / 100 /* use 0-1 percentages */).findFirst();
     }
 
     public static void terminateInstances(String... ids) {
@@ -200,16 +201,28 @@ public class AwsInstanceManager {
 
     public static void setupIamInstanceProfile() {
         try {
-        String policyArn = iam.createPolicy(new CreatePolicyRequest().withPolicyName(INSTANCE_IAM_POLICY_NAME).withPolicyDocument(INSTANCE_IAM_POLICY_DOC)).getPolicy().getArn();
-        iam.createRole(new CreateRoleRequest().withRoleName(INSTANCE_IAM_ROLE_NAME)
-                .withAssumeRolePolicyDocument(INSTANCE_IAM_ROLE_POLICY_DOC));
+            iam.createRole(new CreateRoleRequest().withRoleName(INSTANCE_IAM_ROLE_NAME)
+                    .withAssumeRolePolicyDocument(INSTANCE_IAM_ROLE_POLICY_DOC));
 
-        iam.attachRolePolicy(new AttachRolePolicyRequest().withRoleName(INSTANCE_IAM_ROLE_NAME).withPolicyArn(policyArn));
+            iam.createInstanceProfile(
+                    new CreateInstanceProfileRequest().withInstanceProfileName(INSTANCE_IAM_PROFILE_NAME));
+            iam.addRoleToInstanceProfile(new AddRoleToInstanceProfileRequest()
+                    .withInstanceProfileName(INSTANCE_IAM_PROFILE_NAME).withRoleName(INSTANCE_IAM_ROLE_NAME));
 
-        iam.createInstanceProfile(
-                new CreateInstanceProfileRequest().withInstanceProfileName(INSTANCE_IAM_PROFILE_NAME));
-        iam.addRoleToInstanceProfile(new AddRoleToInstanceProfileRequest()
-                .withInstanceProfileName(INSTANCE_IAM_PROFILE_NAME).withRoleName(INSTANCE_IAM_ROLE_NAME));
-        } catch (Exception e) {}
+            String policyArn = iam.createPolicy(new CreatePolicyRequest().withPolicyName(INSTANCE_IAM_POLICY_NAME)
+                    .withPolicyDocument(INSTANCE_IAM_POLICY_DOC)).getPolicy().getArn();
+            iam.attachRolePolicy(
+                    new AttachRolePolicyRequest().withRoleName(INSTANCE_IAM_ROLE_NAME).withPolicyArn(policyArn));
+
+            // I hate the AWS API
+            while (!iam.listInstanceProfiles().getInstanceProfiles().stream()
+                    .filter(instProfile -> instProfile.getInstanceProfileName().equals(INSTANCE_IAM_PROFILE_NAME))
+                    .findAny().isPresent()) {
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException ignored) {}
+            }
+        } catch (Exception e) {
+        }
     }
 }

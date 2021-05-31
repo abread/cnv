@@ -35,7 +35,7 @@ public class AutoScaler {
     private static final int MAX_INSTANCES = 3;
     private static final double MAX_INSTANCE_CPU = 1-Double.MIN_VALUE; // these requests use the full cpu
     private static final double MIN_INSTANCE_CPU = 0.7;
-    private static final long MAX_INSTANCE_LOAD = 20000000; // TODO: don't use eyeballed value
+    private static final long MAX_INSTANCE_LOAD = 20000000; // TODO: tune (future work)
 
     private static final long MAX_CHANGE = 2; // maximum number of instances started/stopped
 

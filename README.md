@@ -2,7 +2,7 @@
 
 ## Building
 We use Gradle as our build system, which requires Java 8+ to run.
-Note that Java 7-compatible bytecode will be generated, and **JRE 7 is required to run the instrumented webserver** (radarscanner).
+Note that Java 7-compatible bytecode will be generated (for the radarscanner), and **JRE 7 is required to run the instrumented webserver** (radarscanner).
 
 ```bash
 ./gradlew build`
@@ -13,13 +13,14 @@ Note that Java 7-compatible bytecode will be generated, and **JRE 7 is required 
 Tip: Use the `--parallel` flag to speed up the build
 
 The instrumented webserver will be in `radarscanner/build/distributions/radarscanner-1.0-SNAPSHOT.zip`.
+The autoscaler/loadbalancer will be in `autoscaler/build/distributions/autoscaler-1.0-SNAPSHOT.zip`.
 
 Note: building the project is not a requisite to build packer images: they do it for you.
 
 ## Subproject overview
 - radarscanner - The radarscanner web service
 - wsinstrumenter - The radarscanner web service instrumenting code (BIT bytecode manipulation)
-- autoscaler - WIP
+- autoscaler - Auto scaler and Load Balancer (Java 8)
 
 ## Other inclusions
 - `bench.sh` - a simple benchmarking script that spins up a webserver and sends 100 requests for experiment data collection

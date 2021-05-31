@@ -22,18 +22,7 @@ import com.amazonaws.services.ec2.model.IpRange;
 import com.amazonaws.services.ec2.model.RunInstancesRequest;
 import com.amazonaws.services.ec2.model.RunInstancesResult;
 import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
-import com.amazonaws.services.identitymanagement.AmazonIdentityManagement;
-import com.amazonaws.services.identitymanagement.AmazonIdentityManagementClientBuilder;
-import com.amazonaws.services.identitymanagement.model.AddRoleToInstanceProfileRequest;
-import com.amazonaws.services.identitymanagement.model.AttachRolePolicyRequest;
-import com.amazonaws.services.identitymanagement.model.CreateInstanceProfileRequest;
-import com.amazonaws.services.identitymanagement.model.CreatePolicyRequest;
-import com.amazonaws.services.identitymanagement.model.CreateRoleRequest;
 
-import cnv.autoscaler.Main;
-
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -43,7 +32,6 @@ import java.util.Optional;
  * Wrapper class around AWS EC2 and IAM APIs.
  */
 public class AwsInstanceManager {
-    private static final AmazonIdentityManagement iam;
     private static final AmazonEC2 ec2;
     private static final AmazonCloudWatch cloudWatch;
 
@@ -52,11 +40,7 @@ public class AwsInstanceManager {
     private final static String INSTANCE_TYPE = "t2.micro";
     private final static String INSTANCE_SECURITY_GROUP = "ssh+http8000";
     private final static String INSTANCE_KEYPAIR_NAME = "cnv-aws";
-    private final static String INSTANCE_IAM_ROLE_NAME = "radarscanner-instance";
-    private final static String INSTANCE_IAM_PROFILE_NAME = INSTANCE_IAM_ROLE_NAME;
-    private final static String INSTANCE_IAM_ROLE_POLICY_DOC = loadResource("instance_iam_role_policy.json");
-    private final static String INSTANCE_IAM_POLICY_NAME = "radarscanner-instance-policy";
-    private final static String INSTANCE_IAM_POLICY_DOC = loadResource("instance_iam_policy.json");
+    private final static String INSTANCE_IAM_PROFILE_NAME = "radarscanner";
 
     private final static String INSTANCE_IMAGE_ID;
 
@@ -68,63 +52,12 @@ public class AwsInstanceManager {
         cloudWatch = AmazonCloudWatchClientBuilder.standard().withRegion(REGION).withCredentials(credentialsProvider)
                 .build();
 
-        iam = AmazonIdentityManagementClientBuilder.standard().withRegion(REGION).withCredentials(credentialsProvider)
-                .build();
-
         DescribeImagesResult images = ec2.describeImages(new DescribeImagesRequest()
                 .withFilters(new Filter().withName("name").withValues(INSTANCE_IMAGE_NAME)).withOwners("self"));
         assert images.getImages().size() == 1;
         INSTANCE_IMAGE_ID = images.getImages().get(0).getImageId();
 
-        setupIamInstanceProfile();
         setupInstanceSecurityGroup();
-    }
-
-    /**
-     * Loads a resource file
-     * @param name the name of the resource file
-     * @return the file contents as a String
-     */
-    private static String loadResource(String name) {
-        try {
-            InputStream is = Main.class.getClassLoader().getResourceAsStream(name);
-            return new String(readAllBytes(is));
-        } catch (IOException e) {
-            throw new RuntimeException(String.format("Failed to load resource \"%s\"", name), e);
-        }
-    }
-
-    /**
-     * Reads all bytes from an InputStream and returns them in a byte[]
-     * @param is the input stream to be read
-     * @return the corresponding byte[]
-     * @throws IOException if the InputStream can't be read or closed
-     */
-    private static byte[] readAllBytes(InputStream is) throws IOException {
-        final int BUF_SIZE = 4096;
-        byte[] buffer = new byte[BUF_SIZE];
-
-        int offset = 0;
-        int nRead;
-        while ((nRead = is.read(buffer, offset, buffer.length - offset)) != -1) {
-            offset += nRead;
-
-            if (buffer.length == offset) {
-                byte[] newBuffer = new byte[buffer.length + BUF_SIZE];
-                System.arraycopy(buffer, 0, newBuffer, 0, buffer.length);
-                buffer = newBuffer;
-            }
-        }
-
-        is.close();
-
-        if (buffer.length != offset) {
-            byte[] newBuffer = new byte[offset];
-            System.arraycopy(buffer, 0, newBuffer, 0, offset);
-            buffer = newBuffer;
-        }
-
-        return buffer;
     }
 
     /**
@@ -235,43 +168,6 @@ public class AwsInstanceManager {
             if (!e.getErrorCode().equals("InvalidPermission.Duplicate")) {
                 throw e;
             }
-        }
-    }
-
-    /**
-     * Sets up an IAM instance profile. The instance profile takes time to be available and waiting/polling is
-     * required.
-     */
-    public static void setupIamInstanceProfile() {
-        final int MAX_TRIES = 5;
-        int curr_tries = 0;
-        try {
-            iam.createRole(new CreateRoleRequest().withRoleName(INSTANCE_IAM_ROLE_NAME)
-                    .withAssumeRolePolicyDocument(INSTANCE_IAM_ROLE_POLICY_DOC));
-
-            iam.createInstanceProfile(
-                    new CreateInstanceProfileRequest().withInstanceProfileName(INSTANCE_IAM_PROFILE_NAME));
-            iam.addRoleToInstanceProfile(new AddRoleToInstanceProfileRequest()
-                    .withInstanceProfileName(INSTANCE_IAM_PROFILE_NAME).withRoleName(INSTANCE_IAM_ROLE_NAME));
-
-            String policyArn = iam.createPolicy(new CreatePolicyRequest().withPolicyName(INSTANCE_IAM_POLICY_NAME)
-                    .withPolicyDocument(INSTANCE_IAM_POLICY_DOC)).getPolicy().getArn();
-            iam.attachRolePolicy(
-                    new AttachRolePolicyRequest().withRoleName(INSTANCE_IAM_ROLE_NAME).withPolicyArn(policyArn));
-
-            // i hate the aws api
-            while (iam.listInstanceProfiles().getInstanceProfiles().stream()
-                    .noneMatch(instProfile -> instProfile.getInstanceProfileName().equals(INSTANCE_IAM_PROFILE_NAME))) {
-                curr_tries++;
-                if (curr_tries >= MAX_TRIES) {
-                    System.err.println("Could not find the Instance Profile in AWS IAM");
-                    System.exit(1);
-                }
-                try {
-                    Thread.sleep(2000);
-                } catch (InterruptedException ignored) {}
-            }
-        } catch (Exception ignored) {
         }
     }
 }

@@ -136,7 +136,7 @@ public class AutoScaler {
 
             // Decide how many instances to add/remove
             long delta = 0L;
-            if (avgCpuUsage >= MAX_INSTANCE_CPU || avgLoad >= MAX_INSTANCE_LOAD) {
+            if (avgCpuUsage >= MAX_INSTANCE_CPU && avgLoad >= MAX_INSTANCE_LOAD) {
                 // newavg = avg * (size) / (size+delta)
                 // newavg < THRESHOLD
                 // avg*size < THRESHOLD*size + THRESHOLD*delta

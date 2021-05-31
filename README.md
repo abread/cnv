@@ -14,6 +14,8 @@ Tip: Use the `--parallel` flag to speed up the build
 
 The instrumented webserver will be in `radarscanner/build/distributions/radarscanner-1.0-SNAPSHOT.zip`.
 
+Note: building the project is not a requisite to build packer images: they do it for you.
+
 ## Subproject overview
 - radarscanner - The radarscanner web service
 - wsinstrumenter - The radarscanner web service instrumenting code (BIT bytecode manipulation)
@@ -26,74 +28,33 @@ The instrumented webserver will be in `radarscanner/build/distributions/radarsca
 ## Deployment
 Pick any availability zone and stick to it. We prefer `eu-west-2`.
 
-0. Build the project
-1. Prepare the web server base image:
-    1. Create a new t2.micro VM on EC2 running Amazon Linux (64bit x86) with:
-    * at least 8GB of storage,
-    * auto-assign public IP address enabled,
-    * in a new security group `ssh` which allows all outbound traffic to anywhere, and all SSH inbound traffic from anywhere,
-    * with some keypair you own;
-    2. Copy the radarscanner zip using `scp` to the VM to `/home/ec2-user/radarscanner.zip`
-    3. Run the following commands through SSH:
-       ```bash
-       sudo -i
-       # now in the root shell:
+1. Prepare the web server base image: `packer build radarscanner-image.pkr.hcl`
+  * The resulting image will be called `ami-radarscanner`
+2. Prepare the autoscaler/loadbalancer base image: `packer build autoscaler-image.pkr.hcl`
+  * The resulting image will be called `ami-autoscaler`
+3. (IAM console) Create a new policy `autoscaler-iam-policy`
+  * Permissions:
+    - PassRole (in write category) in IAM service for the resource `arn:aws:iam::<account id>:role/radarscanner-instance`
+4. (IAM console) Create a new policy `radarscanner-policy`
+  * Permissions: CreateTable, BatchWriteItem, PutItem, DescribeTable for the DynamoDB service on the table resource `arn:aws:dynamodb:*:<account id>:table/radarscanner-metrics`
+5. (IAM console) Create a new role/instance profile `autoscaler`
+  * Trusted entity type: AWS service
+  * Use case: EC2
+  * Policies: `autoscaler-iam-policy` (created in step 3), `AmazonEC2FullAccess` (from Amazon), `AmazonDynamoDBFullAccess` (from Amazon)
+6. (IAM console) Create a new role/instance profile `radarscanner`
+  * Trusted entity type: AWS service
+  * Use case: EC2
+  * Policies: `radarscanner-policy` (created in step 4)
+7. (EC2 console) Register a keypair `cnv-aws`
+  * The autoscaler will use it in the radarscanner instances it creates
+8. (EC2 console) Launch a new instance `autoscaler`
+  * Image: ami-autoscaler
+  * Instance Type: t2.micro
+  * Auto-assign public IP: Enable
+  * IAM role: `autoscaler` (create in step 5)
+  * Security Group: `ssh+http`
+    * Allows inbound SSH and HTTP traffic from anywhere
+  * Keypair: `cnv-aws` (optional)
 
-       yum update
-       yum install -y java-1.7.0-openjdk-headless
-       mkdir -p /opt
-       cd /opt
-       unzip /home/ec2-user/radarscanner.zip
-       mv radarscanner-* radarscanner
-       chown -R root:nobody radarscanner
-       chmod -R g-w radarscanner
-       echo '(cd /opt/radarscanner && runuser -u nobody -- ./bin/radarscanner -address "0.0.0.0" -port 8000 &)' >> /etc/rc.local
-       chmod +x /etc/rc.local
-       systemctl enable --now rc-local.service
-
-       # you'll need to hit Ctrl+D or input "exit<ENTER>" twice to logout
-       ```
-    4. Create an EC2 image `ami-radarscannerws` from the VM (make sure the *No reboot* option is **disabled**);
-    5. **WAIT** for the image to have an *available* status (open the *AMIs* page to check)
-    6. Terminate the instance after the image is created to save resources.
-2. Create an EC2 launch configuration `launchcfg-radarscannerws` with:
-  * AMI: `ami-radarscannerws`, created in step 1
-  * EC2 instance detailed monitoring within CloudWatch enabled
-  * Security group: new security group `secgrp-radarscannerws` that allows inbound TCP traffic from anywhere to port 8000
-  * Keypair: none
-3. Create a new EC2 classic load balancer `lb-radarscannerws` with:
-  * inside default VPC
-  * Enable advanced VPC configuration
-  * protocol HTTP
-  * load balancer port 80
-  * instance protocol HTTP
-  * instance port 8000
-  * select the only subnet that exists
-  * with a new security group `http` that allows HTTP inbound traffic from anywhere
-  * Health check with ping protocol HTTP on port 8000 with path /test
-4. Create a new EC2 auto scaling group `asg-radarscannerws` with:
-  * Launch configuration: `launchcfg-radarscannerws`, created in step 2
-  * VPC: default VPC
-  * Subnet: the only one that exists
-  * Attach to load balancer `lb-radarscannerws`, created in step 3
-  * ELB health checks enabled
-  * Desired/minimum/maximum capacity: at least 1
-    + **NOTE**: make maximum capacity at least 2 to be able to observe system scaling up/down
-5. Create the alarm `alarm-asg-radarscannerws-highcpu` in CloudWatch:
-  * Metric: CPUUtilization (by Auto Scaling Group, selecting `asg-radarscannerws` from step 4)
-  * Statistics: Average
-  * Period: 1min
-  * Threshold: static, greater than 50 (%)
-  * Notification: none
-6. Create the alarm `alarm-asg-radarscannerws-lowcpu` in CloudWatch:
-  * Metric: CPUUtilization (by Auto Scaling Group, selecting `asg-radarscannerws` from step 4)
-  * Statistics: Average
-  * Period: 1min
-  * Threshold: static, lower than 40 (%)
-  * Notification: none
-7. Create step scaling policy `asg-radarscannerws-scaleup` in `asg-radarscannerws`:
-  * CloudWatch alarm: `alarm-asg-radarscannerws-highcpu`
-  * Action: Add 1 capacity unit (when 50 <= CPUUtilization < +infinity)
-8. Create step scaling policy `asg-radarscannerws-scaledown` in `asg-radarscannerws`:
-  * CloudWatch alarm: `alarm-asg-radarscannerws-lowcpu`
-  * Action: Remove 1 capacity unit (when 40 >= CPUUtilization < +infinity)
+Note: the autoscaler will create the required security group for the radarscanner instances.
+If a security group with the same name already exists it will **not** be recreated with our settings.

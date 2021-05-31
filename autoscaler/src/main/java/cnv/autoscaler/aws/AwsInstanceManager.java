@@ -39,10 +39,13 @@ import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Wrapper class around AWS EC2 and IAM APIs.
+ */
 public class AwsInstanceManager {
-    private static AmazonIdentityManagement iam;
-    private static AmazonEC2 ec2;
-    private static AmazonCloudWatch cloudWatch;
+    private static final AmazonIdentityManagement iam;
+    private static final AmazonEC2 ec2;
+    private static final AmazonCloudWatch cloudWatch;
 
     private final static String REGION = "eu-west-2";
     private final static String INSTANCE_IMAGE_NAME = "ami-radarscanner";
@@ -77,6 +80,11 @@ public class AwsInstanceManager {
         setupInstanceSecurityGroup();
     }
 
+    /**
+     * Loads a resource file
+     * @param name the name of the resource file
+     * @return the file contents as a String
+     */
     private static String loadResource(String name) {
         try {
             InputStream is = Main.class.getClassLoader().getResourceAsStream(name);
@@ -86,6 +94,12 @@ public class AwsInstanceManager {
         }
     }
 
+    /**
+     * Reads all bytes from an InputStream and returns them in a byte[]
+     * @param is the input stream to be read
+     * @return the corresponding byte[]
+     * @throws IOException if the InputStream can't be read or closed
+     */
     private static byte[] readAllBytes(InputStream is) throws IOException {
         final int BUF_SIZE = 4096;
         byte[] buffer = new byte[BUF_SIZE];
@@ -113,6 +127,13 @@ public class AwsInstanceManager {
         return buffer;
     }
 
+    /**
+     * Requestes EC2 to launch n instances with advanced monitoring. The instances are described
+     * by the static variables such as INSTANCE_IMAGE_ID and INSTANCE_TYPE. This function waits for the requested
+     * instances to start.
+     * @param n the number of instances to launch
+     * @return a list of Instance objects describing the launched instances
+     */
     public static List<Instance> launchInstances(int n) {
         final long WAIT_TIME = 1 * 1000; // ms
         RunInstancesRequest runInstancesRequest = new RunInstancesRequest();
@@ -142,11 +163,23 @@ public class AwsInstanceManager {
         return instances;
     }
 
+    /**
+     * Returns the public DNS name for a given instanceId.
+     * @param instanceId the AWS id of the instance
+     * @return the corresponding DNS name
+     */
     public static String getPublicDnsName(String instanceId) {
         return ec2.describeInstances(new DescribeInstancesRequest().withInstanceIds(instanceId)).getReservations()
                 .get(0).getInstances().get(0).getPublicDnsName();
     }
 
+    /**
+     * Returns the average CPU Usage for a given instance id. The CPU Usage is fetched using the CloudWatch API
+     * for a period of the last 60 seconds. If no sufficient data could be found regarding that instance, this method
+     * returns an empty Optional.
+     * @param instanceId the AWS id of the instance
+     * @return the corresponding CPU usage if available, empty if not
+     */
     public static Optional<Double> getAvgCpuUsage(String instanceId) {
         final long ONE_MIN_IN_MILLIS = 1000 * 60 * 10;
         final Date endTime = new Date();
@@ -165,12 +198,18 @@ public class AwsInstanceManager {
                 .map(dp -> dp.getAverage() / 100 /* use 0-1 percentages */).findFirst();
     }
 
+    /**
+     * @param ids the ids of the instances to terminate
+     */
     public static void terminateInstances(String... ids) {
         TerminateInstancesRequest termInstanceReq = new TerminateInstancesRequest();
         termInstanceReq.withInstanceIds(ids);
         ec2.terminateInstances(termInstanceReq);
     }
 
+    /**
+     * Creates an AWS security group to be used with the corresponding permissions and open ports.
+     */
     public static void setupInstanceSecurityGroup() {
         CreateSecurityGroupRequest createReq = new CreateSecurityGroupRequest(INSTANCE_SECURITY_GROUP,
                 "CNV radarscanner instances security group");
@@ -199,7 +238,13 @@ public class AwsInstanceManager {
         }
     }
 
+    /**
+     * Sets up an IAM instance profile. The instance profile takes time to be available and waiting/polling is
+     * required.
+     */
     public static void setupIamInstanceProfile() {
+        final int MAX_TRIES = 5;
+        int curr_tries = 0;
         try {
             iam.createRole(new CreateRoleRequest().withRoleName(INSTANCE_IAM_ROLE_NAME)
                     .withAssumeRolePolicyDocument(INSTANCE_IAM_ROLE_POLICY_DOC));
@@ -215,14 +260,18 @@ public class AwsInstanceManager {
                     new AttachRolePolicyRequest().withRoleName(INSTANCE_IAM_ROLE_NAME).withPolicyArn(policyArn));
 
             // I hate the AWS API
-            while (!iam.listInstanceProfiles().getInstanceProfiles().stream()
-                    .filter(instProfile -> instProfile.getInstanceProfileName().equals(INSTANCE_IAM_PROFILE_NAME))
-                    .findAny().isPresent()) {
+            while (iam.listInstanceProfiles().getInstanceProfiles().stream()
+                    .noneMatch(instProfile -> instProfile.getInstanceProfileName().equals(INSTANCE_IAM_PROFILE_NAME))) {
+                curr_tries++;
+                if (curr_tries >= MAX_TRIES) {
+                    System.err.println("Could not find the Instance Profile in AWS IAM");
+                    System.exit(1);
+                }
                 try {
                     Thread.sleep(2000);
                 } catch (InterruptedException ignored) {}
             }
-        } catch (Exception e) {
+        } catch (Exception ignored) {
         }
     }
 }

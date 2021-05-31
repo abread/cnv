@@ -17,15 +17,19 @@ import cnv.autoscaler.Instance;
 import cnv.autoscaler.InstanceRegistry;
 import cnv.autoscaler.aws.AwsInstanceManager;
 
+/**
+ * This class implements the autoscaler. The autoscaler runs on a separate thread and is responsible for
+ * terminating and launching new instances depending on current system load.
+ */
 public class AutoScaler {
-    private Logger logger = Logger.getLogger(AutoScaler.class.getName());
+    private final Logger logger = Logger.getLogger(AutoScaler.class.getName());
 
-    private InstanceRegistry instanceRegistry;
+    private final InstanceRegistry instanceRegistry;
     private Timer autoScaleTimer;
     private static final long EXEC_PERIOD = 30 * 1000; // ms
-    private TimerTask autoScaleTask = new AutoScaleTask();
+    private final TimerTask autoScaleTask = new AutoScaleTask();
 
-    private AtomicLong pendingInstances = new AtomicLong(0);
+    private final AtomicLong pendingInstances = new AtomicLong(0);
 
     private static final int MIN_INSTANCES = 1;
     private static final int MAX_INSTANCES = 3;
@@ -39,20 +43,33 @@ public class AutoScaler {
         this.instanceRegistry = instanceRegistry;
     }
 
+    /**
+     * Schedules the autoscaler to run immediately and then on a fixed interval of EXEC_PERIOD.
+     */
     public void start() {
         autoScaleTimer = new Timer(true);
         autoScaleTimer.scheduleAtFixedRate(autoScaleTask, 0, EXEC_PERIOD);
     }
 
+    /**
+     * Stops the autoscaler task from running at a fixed interval.
+     */
     public void stop() {
         autoScaleTimer.cancel();
         autoScaleTimer = null;
     }
 
+    /**
+     * Runs the autoscaler job just once, without further scheduling.
+     */
     public void runOnce() {
         autoScaleTask.run();
     }
 
+    /**
+     * @return a pair where the first element is a Map of instance id to its current CPU usage and the second element
+     * is the number of current pending instances
+     */
     private Pair<Map<String, Double>, Long> instanceCpuUsageAndPendingInstances() {
         Collection<Instance> readyInstances;
         long pendingInstances;
@@ -70,6 +87,11 @@ public class AutoScaler {
         );
     }
 
+    /**
+     * Implements a Pair, a data structure containing to generic elements.
+     * @param <F> the first element
+     * @param <S> the second element
+     */
     private static class Pair<F, S> {
         public F first;
         public S second;
@@ -84,8 +106,15 @@ public class AutoScaler {
         }
     }
 
+    /**
+     * This class implements the task scheduled to run at a fixed interval, which is responsible for deciding
+     * how many instances to launch or terminate. The extractors are simple functions used to convert wrappers into
+     * usable metrics.
+     * The decision for how many instances to add/remove are on the run function, and depend on the current
+     * load. The used formula derivations are in comments in the run function.
+     */
     private class AutoScaleTask extends TimerTask {
-        private final ToDoubleFunction<Map.Entry<String, Double>> CPU_USAGE_EXTRACTOR = entry -> entry.getValue();
+        private final ToDoubleFunction<Map.Entry<String, Double>> CPU_USAGE_EXTRACTOR = Map.Entry::getValue;
         private final ToLongFunction<Map.Entry<String, Double>> LOAD_EXTRACTOR = entry -> instanceRegistry
                 .get(entry.getKey()).currentLoad();
 
@@ -150,6 +179,10 @@ public class AutoScaler {
         }
     }
 
+    /**
+     * Runnable responsible for launching or terminating the instances decided by the AutoScaleTask. This
+     * worker interacts with the EC2 API.
+     */
     private class ScaleUp implements Runnable {
         private static final long WAIT_TIME = 1 * 1000; // ms
         public long n;
@@ -164,7 +197,7 @@ public class AutoScaler {
 
         public void run() {
             List<Instance> startedInstances = AwsInstanceManager.launchInstances(Long.valueOf(n).intValue()).stream()
-                    .map(awsMetadata -> new Instance.AwsInstance(awsMetadata)).collect(Collectors.toList());
+                    .map(Instance.AwsInstance::new).collect(Collectors.toList());
 
             while (!startedInstances.isEmpty()) {
                 // clone list on each iteration to eliminate concurrent modification

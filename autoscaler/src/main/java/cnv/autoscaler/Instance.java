@@ -188,7 +188,8 @@ public class Instance {
     }
 
     /**
-     * Specialization of the instance class for AWS. Uses CloudWwatch metrics and the EC2 API for terminating instances.
+     * Specialization of the instance class for AWS. Uses CloudWatch API for metrics and the
+     * EC2 API for terminating instances.
      */
     public static class AwsInstance extends Instance {
         public AwsInstance(com.amazonaws.services.ec2.model.Instance awsMetadata) {

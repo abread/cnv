@@ -4,6 +4,11 @@ import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.InstanceProfileCredentialsProvider;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 
+/**
+ * Retrieves AWS credentials.
+ * Initializes the AWSCredentialsProvider. The credentials are, by default, in `~/.aws/credentials`. Supports
+ * Profile Credentials as well as Instance Profile Credentials.
+ */
 class AwsCredentials {
     private static final AWSCredentialsProvider CREDENTIALS_PROVIDER;
 
@@ -26,6 +31,9 @@ class AwsCredentials {
         CREDENTIALS_PROVIDER = provider;
     }
 
+    /**
+     * @return the AWSCredentialsProvider after set up
+     */
     static AWSCredentialsProvider credentialsProvider() {
         return CREDENTIALS_PROVIDER;
     }

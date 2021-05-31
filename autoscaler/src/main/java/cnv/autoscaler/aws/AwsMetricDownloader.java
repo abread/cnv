@@ -37,8 +37,8 @@ import com.amazonaws.services.dynamodbv2.util.TableUtils;
 import cnv.autoscaler.loadbalancer.RequestParams;
 
 /**
- * This sample demonstrates how to perform a few simple operations with the
- * Amazon DynamoDB service.
+ * This class is adapted from Amazon's DynamoDB sample which demonstrates how to perform a few simple operations.
+ * The static block initializes the API and creates a DynamoDB table if not yet present.
  */
 public class AwsMetricDownloader {
     private final static Logger LOGGER = Logger.getLogger(AwsMetricDownloader.class.getName());
@@ -73,6 +73,13 @@ public class AwsMetricDownloader {
         }
     }
 
+    /**
+     * Gets the estimated method count for the given RequestParams. The estimate is given by the average of
+     * similar requests present in the database.
+     * @see RequestParams#similarTo(RequestParams) for the similarity measure
+     * @param params the request parameters corresponding to a given request
+     * @return the estimate if similar requests are available. An empty optional otherwise
+     */
     public static OptionalDouble getEstimatedMethodCountForRequest(RequestParams params) {
         try {
             HashMap<String, Condition> scanFilter = new HashMap<String, Condition>();
@@ -92,12 +99,18 @@ public class AwsMetricDownloader {
             ScanResult scanResult = dynamoDB.scan(scanRequest);
             return scanResult.getItems().stream().mapToDouble(m -> Double.parseDouble(m.get("methodCount").getN()))
                     .average();
-        } catch (AmazonClientException ignored) {
-            LOGGER.warning("Failed to get better estimate for request: " + ignored.getMessage());
+        } catch (AmazonClientException e) {
+            LOGGER.warning("Failed to get better estimate for request: " + e.getMessage());
             return OptionalDouble.empty();
         }
     }
 
+    /**
+     * Adds a condition for a variable to be between a certain interval.
+     * @param filter the current map of filters
+     * @param arg the name of field in the document
+     * @param value the middle point of the interval
+     */
     private static void addIntervalCondition(HashMap<String, Condition> filter, String arg, long value) {
         Condition between = new Condition().withComparisonOperator(ComparisonOperator.BETWEEN.toString())
                 .withAttributeValueList(

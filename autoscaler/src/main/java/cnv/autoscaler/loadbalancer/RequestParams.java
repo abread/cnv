@@ -44,8 +44,8 @@ public class RequestParams {
      * True if this request parameters are similar to the others, false otherwise
      * To be similar each coordinate must differ at most by the POSITION_THRESHOLD and the image and algorithm
      * must be the same
-     * @param other
-     * @return
+     * @param other the RequestParams to compare this instance to
+     * @return whether the two RequestParams are similar or not
      */
     public boolean similarTo(RequestParams other) {
         return this.algo.equals(other.algo)

@@ -21,12 +21,16 @@ import cnv.autoscaler.loadestimate.BetterEstimateFetcher;
 
 public class Instance {
     protected Logger logger;
-    private String id;
-    private String baseUri;
+    private final String id;
+    private final String baseUri;
 
     private boolean isStopping = false;
-    private Map<Request, Long> requestLoadEstimates = new HashMap<>();
-    private AtomicLong currentLoad = new AtomicLong(0);
+
+    /**
+     * Thread-safety: the methods that access this field are all synchronized, so it is safe to use a simple HashMap
+     */
+    private final Map<Request, Long> requestLoadEstimates = new HashMap<>();
+    private final AtomicLong currentLoad = new AtomicLong(0);
 
     private static final FastEstimator estimator = new FastEstimator();
 
@@ -107,7 +111,7 @@ public class Instance {
 
         methodCount.ifPresent(c -> {
             logger.info(String.format("Request %s had %d method calls", req.getId(), c));
-            estimator.putInCache(req.params(), c.longValue());
+            estimator.putInCache(req.params(), c);
         });
 
         if (isStopping && requestLoadEstimates.isEmpty()) {

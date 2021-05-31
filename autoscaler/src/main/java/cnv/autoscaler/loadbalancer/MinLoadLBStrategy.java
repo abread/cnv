@@ -8,6 +8,10 @@ import java.util.UUID;
 import cnv.autoscaler.Instance;
 import cnv.autoscaler.InstanceRegistry;
 
+/**
+ * The min-load load balancing implementation, where it forwards each request to the instance that has the least load
+ * This implementation only forwards requests to healthy instances
+ */
 public class MinLoadLBStrategy extends LBStrategy {
     public MinLoadLBStrategy(InstanceRegistry registry) {
         super(registry);

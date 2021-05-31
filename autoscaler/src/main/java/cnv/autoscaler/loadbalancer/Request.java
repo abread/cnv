@@ -5,6 +5,10 @@ import java.util.UUID;
 
 import cnv.autoscaler.Instance;
 
+/**
+ * Class representing a receiving Request
+ * It has the parameters sent with the request, and the instance where the request was forwarded to
+ */
 public class Request {
     private UUID id;
     private Instance instance;

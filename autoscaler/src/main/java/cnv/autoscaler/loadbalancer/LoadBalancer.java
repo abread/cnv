@@ -9,6 +9,11 @@ import com.sun.net.httpserver.HttpServer;
 
 import cnv.autoscaler.InstanceRegistry;
 
+/**
+ * Implementation of the load balancer
+ * Receives the registry of all instances and the address and port where to listen
+ * Provides the /scan endpoint to the clients
+ */
 public class LoadBalancer {
     private final HttpServer server;
 

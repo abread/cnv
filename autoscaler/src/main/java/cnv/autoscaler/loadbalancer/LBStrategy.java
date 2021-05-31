@@ -26,6 +26,10 @@ import org.apache.hc.core5.util.Timeout;
 import cnv.autoscaler.Instance;
 import cnv.autoscaler.InstanceRegistry;
 
+/**
+ * Abstract the strategy of load balancing, while handling the received requests and trying to send the requests
+ * to an instance
+ */
 public abstract class LBStrategy implements HttpHandler {
     private Logger logger = Logger.getLogger(LBStrategy.class.getName());
     protected InstanceRegistry registry;
@@ -38,6 +42,11 @@ public abstract class LBStrategy implements HttpHandler {
         this.registry = registry;
     }
 
+    /**
+     * Receives a request, parses it and (tries to) redirects it to an instance
+     * @param t
+     * @throws IOException
+     */
     public void handle(final HttpExchange t) throws IOException {
         // Get the query.
         final UUID requestId = UUID.randomUUID();
@@ -76,6 +85,15 @@ public abstract class LBStrategy implements HttpHandler {
         logger.info("Request " + requestId + " answered");
     }
 
+    /**
+     * Tries to send this request to an healthy instance, and parses its results on success, or marks that instance
+     * as a suspected unhealthy
+     * When the response is an success, gets the method count from the headers and stores it.
+     * @param queryString
+     * @param requestId
+     * @param suspectedBadInstances
+     * @return
+     */
     private Reply tryPerformingRequest(String queryString, UUID requestId, HashSet<Instance> suspectedBadInstances) {
         final int WAIT_TIME = 10 * 1000;// ms
         Optional<Long> methodCount = Optional.empty();

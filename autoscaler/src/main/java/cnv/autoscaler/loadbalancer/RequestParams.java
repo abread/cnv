@@ -2,6 +2,10 @@ package cnv.autoscaler.loadbalancer;
 
 import java.util.Objects;
 
+/**
+ * Represents the parameters sent with each query request
+ * Parses each parameter, containing the algorithm, the path of the image and each position and viewpor
+ */
 public class RequestParams {
     public final static int POSITION_THRESHOLD = 16; // TODO: tune (future work)
     public long x0 = 0, x1 = 0, y0 = 0, y1 = 0;
@@ -36,6 +40,13 @@ public class RequestParams {
         return viewportArea;
     }
 
+    /**
+     * True if this request parameters are similar to the others, false otherwise
+     * To be similar each coordinate must differ at most by the POSITION_THRESHOLD and the image and algorithm
+     * must be the same
+     * @param other
+     * @return
+     */
     public boolean similarTo(RequestParams other) {
         return this.algo.equals(other.algo)
             && this.imagePath.equals(other.imagePath)

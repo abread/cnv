@@ -10,6 +10,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import cnv.autoscaler.Instance;
 import cnv.autoscaler.InstanceRegistry;
 
+/**
+ * Round Robin load balancing implementation, where each request is forwarded to an instance equally distributed.
+ * Doesn't have any more logic, it is a proof-of-concept
+ */
 public class RoundRobinLBStrategy extends LBStrategy {
     private AtomicInteger idx = new AtomicInteger(0);
 

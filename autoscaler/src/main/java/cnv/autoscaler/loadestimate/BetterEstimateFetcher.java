@@ -8,21 +8,23 @@ import java.util.logging.Logger;
 import cnv.autoscaler.aws.AwsMetricDownloader;
 import cnv.autoscaler.loadbalancer.Request;
 
+/**
+ * Implements a slow-ish estimate fetcher which relies on querying DynamoDB. This runs on a separate thread
+ * to allow non-blocking operation.
+ */
 public class BetterEstimateFetcher {
-    private Logger logger = Logger.getLogger(BetterEstimateFetcher.class.getName());
-    private ConcurrentLinkedQueue<Request> queue = new ConcurrentLinkedQueue<>();
-    private Semaphore queueNotEmpty = new Semaphore(0);
-
-    private Thread worker;
+    private final Logger logger = Logger.getLogger(BetterEstimateFetcher.class.getName());
+    private final ConcurrentLinkedQueue<Request> queue = new ConcurrentLinkedQueue<>();
+    private final Semaphore queueNotEmpty = new Semaphore(0);
 
     public BetterEstimateFetcher() {
-        worker = new Thread(new Worker(), "BetterEstimateFetcher worker");
+        Thread worker = new Thread(new Worker(), "BetterEstimateFetcher worker");
         worker.start();
     }
 
     /**
-     * never blocks
-     * @param req
+     * Adds a request for getting the load estimate for a given Request. This method never blocks.
+     * @param req the correspondign request
      */
     public void queueEstimationRequest(Request req) {
         queue.add(req);
@@ -33,6 +35,10 @@ public class BetterEstimateFetcher {
         }
     }
 
+    /**
+     * Implements a worker responsible for fetching the estimates from DynamoDB. The worker polls for current
+     * estimation requests and updates their load estimate when a response from DynamoDB is received.
+     */
     private class Worker implements Runnable {
         @Override
         public void run() {
